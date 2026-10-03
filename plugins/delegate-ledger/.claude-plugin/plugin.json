@@ -1,0 +1,7 @@
+{
+  "name": "delegate-ledger",
+  "version": "0.1.0",
+  "author": { "name": "Jeff Kazzee" },
+  "description": "Keeps a ledger of every subagent and background shell, flags unread results, and offers to relaunch work a dead session left running",
+  "types": "./types/index.d.ts"
+}

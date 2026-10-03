@@ -1,0 +1,21 @@
+{
+  "name": "taste-fork",
+  "version": "0.1.0",
+  "description": "A critic with Jeff's taste reads each deliverable once after it is written and hands its findings back to the agent to fix.",
+  "author": { "name": "Jeff Kazzee" },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "globs": {
+      "type": "string",
+      "title": "Files to review",
+      "description": "Comma-separated globs. A glob without a leading **/ or drive matches at any depth, and braces list alternatives. Negation is not supported. A Write or Edit to a matching path gets one critic pass per session. An Artifact publish gets its own pass when its text is new.",
+      "default": "**/content/**, **/pr-body*.md, **/issue-comment*.md, **/scratchpad/**/*.html, **/projects/**/*.html"
+    },
+    "criticModel": {
+      "type": "string",
+      "title": "Critic model",
+      "description": "The model alias or full id the critic runs on.",
+      "default": "opus"
+    }
+  }
+}

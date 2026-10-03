@@ -1,0 +1,44 @@
+{
+  "name": "lint-climb",
+  "workdir": "./work",
+  "criteria": [
+    {
+      "id": "slop",
+      "weight": 3,
+      "direction": "down",
+      "scale": { "min": 0, "max": 20 },
+      "measure": {
+        "command": ["node", "{endeavour}/measure.mjs", "draft.md"],
+        "parse": "slop=([0-9]+)",
+        "timeoutMs": 20000
+      }
+    },
+    {
+      "id": "words",
+      "weight": 1,
+      "direction": "down",
+      "scale": { "min": 60, "max": 200 },
+      "measure": {
+        "command": ["node", "{endeavour}/measure.mjs", "draft.md"],
+        "parse": "words=([0-9]+)",
+        "timeoutMs": 20000
+      }
+    },
+    {
+      "id": "clarity",
+      "weight": 2,
+      "direction": "up",
+      "measure": {
+        "judge": {
+          "model": "haiku",
+          "rubric": "Score how plainly and specifically the draft says what the tool does and who it is for. 10 means every sentence is concrete and checkable. 0 means vague claims and filler.",
+          "files": ["draft.md"]
+        }
+      }
+    }
+  ],
+  "guards": ["clarity"],
+  "target": 8.5,
+  "budget": { "maxRounds": 8, "maxMinutes": 30 },
+  "stopAfterNoGain": 3
+}

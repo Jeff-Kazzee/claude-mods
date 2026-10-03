@@ -1,0 +1,7 @@
+{
+  "name": "hillclimb-loop",
+  "version": "0.1.0",
+  "description": "Climbs a rubric round after round, keeping only measured gains, until a stop rule fires.",
+  "author": { "name": "Jeff Kazzee" },
+  "types": "./types/index.d.ts"
+}

@@ -1,0 +1,28 @@
+{
+  "name": "jeff-mods",
+  "owner": {
+    "name": "Jeff Kazzee"
+  },
+  "plugins": [
+    {
+      "name": "peanut-gallery",
+      "description": "A private back channel where any agent leaves Jeff a short note, reminder, suggestion, or criticism. Only Jeff reads them, through /gallery.",
+      "source": "./plugins/peanut-gallery"
+    },
+    {
+      "name": "delegate-ledger",
+      "description": "A ledger of every subagent and background shell, kept across restarts. Flags unread results and offers to relaunch work a dead session left running.",
+      "source": "./plugins/delegate-ledger"
+    },
+    {
+      "name": "taste-fork",
+      "description": "A critic with Jeff's taste reads each deliverable once after it is written and hands its findings back to the agent to fix.",
+      "source": "./plugins/taste-fork"
+    },
+    {
+      "name": "hillclimb-loop",
+      "description": "Climbs a rubric round after round, keeping only measured gains, until a stop rule fires.",
+      "source": "./plugins/hillclimb-loop"
+    }
+  ]
+}

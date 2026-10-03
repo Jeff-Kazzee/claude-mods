@@ -1,0 +1,7 @@
+{
+  "name": "peanut-gallery",
+  "version": "0.1.0",
+  "description": "A private back channel where any agent leaves Jeff a short note or criticism, and only Jeff reads them.",
+  "author": { "name": "Jeff Kazzee" },
+  "types": "./types/index.d.ts"
+}
