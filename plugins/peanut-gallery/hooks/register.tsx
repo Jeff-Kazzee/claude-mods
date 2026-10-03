@@ -1,31 +1,38 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderSurface } from 'claude-code'
 
-import type { Note, NoteAuthor, NoteStatus } from '../types'
+import type { Note, NoteAuthor, NoteResolution, NoteStatus } from '../types'
 import {
   INVITE_SECTION,
   PANE_LIMIT,
   PER_AGENT_CAP,
+  RESOLVE_SPEC,
   TOOL_SPEC,
   admit,
   exportMarkdown,
   folderName,
   headline,
   isNoteKey,
+  leadsText,
   noteKey,
   parseNote,
+  parseResolve,
   parseStoredNote,
   plural,
   prune,
+  resolutionText,
   statusLine,
   unreadCount,
 } from './gallery'
 
 const PANE = 'peanut-gallery'
 const NOTE_TOOL = 'mcp__peanut-gallery__note'
+const RESOLVE_TOOL = 'mcp__peanut-gallery__resolve'
+const LEADS_SECTION = 'peanut-gallery:notes'
 
 const notes = atom({ plugin: 'peanut-gallery', key: 'notes' } as const, [])
 const agents = atom({ plugin: 'peanut-gallery', key: 'agents' } as const, {})
+const leads = atom({ plugin: 'peanut-gallery', key: 'leads' } as const, '')
 
 async function loadNotes($: EngineInterface): Promise<Note[]> {
   const keys = (await $.store.keys()).filter(isNoteKey)
@@ -85,15 +92,27 @@ export const register: Register = on => {
     await update($, notes, () => kept)
     $.ui.status(statusLine(kept))
 
+    const project = folderName(await $.session.root())
+    const section = project === undefined ? '' : leadsText(kept, project)
+    await update($, leads, () => section)
+    if (section !== '') await $.tool.register(RESOLVE_SPEC)
+
     return next(e)
   })
 
-  on('tool.describe', { tool: NOTE_TOOL }, async ($, e, next) => ({ ...(await next(e)), isDeferred: false }))
+  on('tool.describe', { tool: [NOTE_TOOL, RESOLVE_TOOL] }, async ($, e, next) => ({
+    ...(await next(e)),
+    isDeferred: false,
+  }))
 
+  // A subagent's own system prompt replaces the session's, so these sections reach the main loop and its forks.
+  // A teammate renders its lead's prompt, so the notes are left out there.
   on('prompt.compose', async ($, e, next) => {
     const composed = await next(e)
+    const section = e.traits.includes('teammate') ? '' : await read($, leads)
+    const added = section === '' ? [] : [{ id: LEADS_SECTION, scope: 'session' as const, text: section }]
 
-    return { sections: [...composed.sections, INVITE_SECTION] }
+    return { sections: [...composed.sections, INVITE_SECTION, ...added] }
   })
 
   on('agent.spawn', async ($, e, next) => {
@@ -133,6 +152,27 @@ export const register: Register = on => {
     }
 
     return { result: 'Noted.' }
+  })
+
+  on('tool.call', { tool: RESOLVE_TOOL }, async ($, e) => {
+    const parsed = parseResolve(e)
+    if (!parsed.isValid) return { deny: parsed.error }
+
+    const resolution: NoteResolution = {
+      outcome: parsed.outcome,
+      text: parsed.text,
+      time: await $.clock.now(),
+      sessionId: await $.session.id(),
+      author: await authorOf($, e.agentId),
+    }
+    const after = await update($, notes, list =>
+      list.map(note => (note.id === parsed.id ? { ...note, resolution } : note)),
+    )
+    const note = after.find(one => one.id === parsed.id)
+    if (note === undefined) return { deny: `No note has the id ${parsed.id}.` }
+
+    await $.store.set(noteKey(note.id), note)
+    return { result: 'Resolved. Jeff reads your line in /gallery.' }
   })
 
   on('command.run', { command: 'gallery' }, async ($, e) => {
@@ -179,6 +219,7 @@ export const register: Register = on => {
             </Text>
             <Text>{note.text}</Text>
             {note.about !== undefined && <Text dimColor>About {note.about}</Text>}
+            {note.resolution !== undefined && <Text dimColor>Addressed, {resolutionText(note.resolution)}</Text>}
             <Box flexDirection="row" gap={1}>
               {note.status === 'unread' && (
                 <Button

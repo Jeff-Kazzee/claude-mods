@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "peanut-gallery",
-      "description": "A private back channel where any agent leaves Jeff a short note, reminder, suggestion, or criticism. Only Jeff reads them, through /gallery.",
+      "description": "A back channel where any agent leaves Jeff a short note, reminder, suggestion, or criticism. Jeff reads them in /gallery, and later sessions on the same project see his unread notes as leads and mark what they did.",
       "source": "./plugins/peanut-gallery"
     },
     {

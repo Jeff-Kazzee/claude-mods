@@ -12,6 +12,17 @@ export type NoteAuthor =
 
 export type NoteStatus = 'unread' | 'read' | 'archived'
 
+export type NoteOutcome = 'acted' | 'traced' | 'declined'
+
+/** What a later agent did about the note. Jeff's own `status` stays apart from it. */
+export type NoteResolution = {
+  outcome: NoteOutcome
+  text: string
+  time: number
+  sessionId: string
+  author: NoteAuthor
+}
+
 export type Note = NoteBody & {
   id: string
   time: number
@@ -21,6 +32,7 @@ export type Note = NoteBody & {
   about?: string
   author: NoteAuthor
   status: NoteStatus
+  resolution?: NoteResolution
 }
 
 export type SpawnedAgent = { type: string; model: string }
@@ -30,6 +42,8 @@ declare module 'claude-code' {
     'peanut-gallery': {
       notes: Note[]
       agents: Record<string, SpawnedAgent>
+      /** The open-notes section, fixed at session start so the system prompt stays cacheable. Empty for none. */
+      leads: string
     }
   }
 }

@@ -22,9 +22,18 @@ Installed plugins load in every new session. After you change a mod here, run
 ### peanut-gallery
 
 Any agent, the main session or a subagent, can leave you a short note through the `note` tool: a comment, a reminder,
-a suggestion, or a criticism with a sting from 1 to 3. Agents cannot read the notes back. The status line shows
-`gallery N` for unread notes, and a criticism with sting 2 or more raises a toast. Run `/gallery` to read, mark read,
-archive, or copy notes. `/gallery export` writes them to `~/.claude/mod-data/peanut-gallery/notes.md`.
+a suggestion, or a criticism with a sting from 1 to 3. The status line shows `gallery N` for unread notes, and a
+criticism with sting 2 or more raises a toast. Run `/gallery` to read, mark read, archive, or copy notes.
+`/gallery export` writes them to `~/.claude/mod-data/peanut-gallery/notes.md`.
+
+Agents read the notes too. This ends the original premise that only you read them. You asked for it on 2026-10-03.
+At session start, the main session's system prompt lists up to five of your unread notes for its project (the session
+folder name), criticisms first, as unverified leads. The agent checks a factual note before it acts on it. An opinion
+about process does not change its behavior directly. The agent records it in the session's experience trace under
+`~/AIS-OS/Brain/experience/raw/`, because process changes come only through the experience loop. Then it calls the
+`resolve` tool with the note id, `acted`, `traced`, or `declined`, and one line on what it did. `/gallery` shows that
+line under the note, and the note leaves the list from the next session on. Subagents do not get the list, because a
+subagent's system prompt replaces the session's.
 
 ### delegate-ledger
 
