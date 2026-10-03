@@ -38,14 +38,22 @@ const keyOf = (path: string) => path.replace(/\\/g, '/').toLowerCase()
 
 type Reply = ModelCompleteResult | { deny: string }
 
-function world(on: On, reply: (ask: ModelCompleteRequest) => Reply | Promise<Reply>): World {
+function world(
+  on: On,
+  reply: (ask: ModelCompleteRequest) => Reply | Promise<Reply>,
+  { isTasteMissing = false } = {},
+): World {
   mock.env(on, { USERPROFILE: 'C:\\Users\\jeff' })
   const w: World = { asks: [], statuses: [], logs: [], disk: new Map(), tool: { isError: false } }
   for (const [path, text] of Object.entries(RULES)) w.disk.set(keyOf(path), text)
   const dir = (name: string) => ({ name, kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false })
 
   on('fs.read', ($, e) => {
-    if (keyOf(e.path).endsWith('/taste.md')) return { value: 'PAST REJECTIONS: crossbones that did not read as bones.' }
+    if (keyOf(e.path).endsWith('/taste.md')) {
+      return isTasteMissing
+        ? { deny: `ENOENT ${e.path}` }
+        : { value: 'PAST REJECTIONS: crossbones that did not read as bones.' }
+    }
     const text = w.disk.get(keyOf(e.path))
     return text === undefined ? { deny: `ENOENT ${e.path}` } : { value: text }
   })
@@ -199,6 +207,22 @@ test('a Write under content/ hands the findings back to the model with the voice
   expect(w.statuses).toContain('taste reviewing post.md')
   expect(w.statuses.at(-1)).toBe('taste 2 findings, 1 file')
 })
+
+for (const isTasteMissing of [false, true]) {
+  test(`the critic prompt says never to flag the attribution line or parentheses, taste.md ${isTasteMissing ? 'missing' : 'read'}`, async ($, on) => {
+    const w = world(on, () => answered('CLEAN'), { isTasteMissing })
+    w.disk.set(keyOf('C:/repo/pr-body.md'), 'Fixes the leak (both of them).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)')
+
+    await $.tool.call(write('C:/repo/pr-body.md', 'x'))
+
+    const system = w.asks[0]?.system ?? ''
+    const doNotFlag = /<do-not-flag>\n([\s\S]*?)\n<\/do-not-flag>/.exec(system)?.[1] ?? ''
+    expect(doNotFlag).toContain('Never report them')
+    expect(doNotFlag).toContain('`🤖 Generated with [Claude Code](https://claude.com/claude-code)` at the end of a PR body')
+    expect(doNotFlag).toContain('"a period, a comma, or parentheses", so a parenthetical is allowed')
+    expect(system.includes('PAST REJECTIONS')).toBe(!isTasteMissing)
+  })
+}
 
 test('a file gets one write pass and one publish pass, and its text copied elsewhere gets none', async ($, on) => {
   const w = world(on, () => answered('1. "Maybe" hedges. Commit to the claim.'))

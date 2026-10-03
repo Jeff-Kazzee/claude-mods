@@ -1,6 +1,6 @@
 {
   "name": "taste-fork",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A critic with Jeff's taste reads each deliverable once after it is written and hands its findings back to the agent to fix.",
   "author": { "name": "Jeff Kazzee" },
   "types": "./types/index.d.ts",

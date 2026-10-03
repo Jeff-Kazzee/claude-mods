@@ -16,6 +16,12 @@ export const WRITING_FLOOR = [
   '- No tidy moral ending. A piece ends on its last fact or next action, not on a lesson, a summary, or what it all means.',
 ].join('\n')
 
+/** Dated in taste.md. Kept here too so the critic holds them when taste.md is missing, and a test can prove it. */
+export const DO_NOT_FLAG = [
+  '- The attribution line `🤖 Generated with [Claude Code](https://claude.com/claude-code)` at the end of a PR body. The workspace requires it.',
+  '- Parentheses. The writing law replaces a dash with "a period, a comma, or parentheses", so a parenthetical is allowed, not a dash substitute.',
+].join('\n')
+
 export type CriticRules = { voice: string; unslop: string; taste: string }
 
 export const toSlashes = (path: string): string => path.replace(/\\/g, '/')
@@ -132,6 +138,7 @@ export function criticSystem(rules: CriticRules): string {
     "You are a critic with Jeff Kazzee's taste. An agent just wrote the file below and Jeff has not seen it yet. Report what Jeff would reject. You only report. The rule files below say how to edit prose. Use them to judge, never to rewrite the file.",
     'For HTML, judge the visible text and what the markup shows about the design: placeholder or missing content, unfinished sections, facts shown as widgets instead of plain text.',
     `<writing-floor>\n${WRITING_FLOOR}\n</writing-floor>`,
+    `<do-not-flag>\nThe critic got these wrong before. Never report them, whatever a rule below seems to say.\n${DO_NOT_FLAG}\n</do-not-flag>`,
     rules.unslop && `<unslop>\n${rules.unslop}\n</unslop>`,
     rules.voice && `<jeff-voice>\nThis file is content published as Jeff. Hold it to this voice.\n${rules.voice}\n</jeff-voice>`,
     rules.taste && `<past-rejections>\n${rules.taste}\n</past-rejections>`,

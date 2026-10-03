@@ -3,6 +3,7 @@
 Each line is a rejection from a real session, with its date and session id.
 Seeded 2026-10-02 from the friction catalog's writing and design rows.
 Add a line when Jeff rejects something new. Keep each line to one rejection.
+The last section lists what the critic got wrong. Never report anything it lists.
 
 ## Writing
 
@@ -22,3 +23,8 @@ Add a line when Jeff rejects something new. Keep each line to one rejection.
 - 2026-09-23 (`e57bff21`). Previews showed placeholder frames and a broken arrow glyph. Placeholders and broken glyphs are not shippable.
 - 2026-09-22 (`8e9a54c7`). A theme catalog had near-duplicate palettes and colors that did not match the theme names.
 - 2026-10-01 (`f0e94d70`). Flag crossbones were drawn as lines with dots and did not read as bones. Draw the literal symbol the genre expects.
+
+## Do not flag
+
+- 2026-10-03 (PR #141). The critic told an agent to delete the attribution line `🤖 Generated with [Claude Code](https://claude.com/claude-code)` at the end of a PR body. The workspace requires that line. Never flag it.
+- 2026-10-03 (PR #141). The critic twice flagged parentheses as a dash substitute. The writing law says to replace a dash with "a period, a comma, or parentheses", so parentheses are allowed. Never flag them.

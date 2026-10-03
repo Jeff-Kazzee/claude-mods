@@ -40,6 +40,9 @@ hands its findings back to the agent before you see the file. It judges against 
 Jeff's voice for files under `content/`, and the dated rejections in `plugins/taste-fork/taste.md`. Add a rejection
 there, then update the plugin. Change the reviewed files or the critic model in `/config`.
 
+The critic never flags the PR attribution line or parentheses. It got both wrong on PR #141. Those two exceptions are
+dated in `taste.md` and also live in `hooks/taste.ts`, so they hold even when `taste.md` cannot be read.
+
 ### hillclimb-loop
 
 Climbs a rubric round after round. Each round aims one change at the weakest criterion, measures every criterion
