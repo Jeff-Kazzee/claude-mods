@@ -42,6 +42,10 @@ status line shows running and unread counts. A result nobody reads for five minu
 the ledger. After a crash, the next session lists the work that was still running, and **Relaunch** fills a prompt
 from the saved brief. It never sends the prompt.
 
+The agent gets that list too. At session start, the main session's system prompt names up to five delegates an earlier
+session in the same folder left running, each with its description, brief path, and age. The harness already tells
+the agent when a delegate finishes, so this is the one fact the ledger adds for it.
+
 ### taste-fork
 
 After a Write or Edit to a matching file, or an Artifact publish, a critic on another model reads the file once and

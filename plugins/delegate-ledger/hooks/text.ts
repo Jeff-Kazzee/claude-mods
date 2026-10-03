@@ -135,6 +135,32 @@ export const age = (ms: number): string => {
   return `${Math.floor(hours / 24)}d`
 }
 
+const ORPHANS_SHOWN = 5
+
+const ago = (ms: number): string => {
+  const span = age(ms)
+  return span === 'now' ? 'just now' : `${span} ago`
+}
+
+/** Ages count from `at`, the session's start, so the text never changes inside a session. */
+export const orphansSection = (orphans: readonly Delegate[], at: number): string => {
+  if (orphans.length === 0) return ''
+  const lines = orphans.slice(0, ORPHANS_SHOWN).map(d =>
+    [
+      `- ${d.kind === 'agent' ? 'Agent' : 'Background command'} "${redact(d.description).replace(/\s+/g, ' ').trim()}"`,
+      d.briefPath === undefined ? 'no brief path recorded' : `brief ${redact(d.briefPath)}`,
+      `started ${ago(at - d.startedAt)}.`,
+    ].join(', '),
+  )
+  return [
+    '# Delegates an earlier session left running',
+    '',
+    'These were still marked running when an earlier session in this folder ended, so their work may be unfinished. Check what each one finished before you rely on it.',
+    '',
+    ...lines,
+  ].join('\n')
+}
+
 export const shortModel = (model: string | undefined): string =>
   model === undefined ? '' : model.replace(/^claude-/, '')
 

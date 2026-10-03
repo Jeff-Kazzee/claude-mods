@@ -60,6 +60,8 @@ declare module 'claude-code' {
       processId: string
       mine: Delegate[]
       others: Delegate[]
+      /** The orphans section, fixed at session start so the system prompt stays cacheable. Empty for none. */
+      orphansText: string
     }
   }
 }

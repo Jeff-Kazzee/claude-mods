@@ -28,6 +28,7 @@ import {
   describeCommand,
   findBriefPath,
   nagText,
+  orphansSection,
   outcomeOfStatus,
   parseDeliveries,
   redact,
@@ -40,6 +41,7 @@ type Engine = EngineInterface
 type Origin = Pick<DelegateFacts, 'processId' | 'sessionId' | 'cwd'>
 
 const PANE = 'delegates'
+const ORPHANS_SECTION = 'delegate-ledger:orphans'
 const RECORD = 'proc:'
 const TICK_MS = 60_000
 const PANE_ROWS = 100
@@ -48,6 +50,7 @@ const BAND_ROWS = 4
 const processIdAtom = atom({ plugin: 'delegate-ledger', key: 'processId' } as const, '')
 const mineAtom = atom({ plugin: 'delegate-ledger', key: 'mine' } as const, [])
 const othersAtom = atom({ plugin: 'delegate-ledger', key: 'others' } as const, [])
+const orphansTextAtom = atom({ plugin: 'delegate-ledger', key: 'orphansText' } as const, '')
 
 const STATES: ReadonlySet<string> = new Set(['running', 'done-unread', 'done-used', 'orphaned'])
 
@@ -218,11 +221,22 @@ export const register: Register = on => {
       if ((await read($, processIdAtom)) === '') {
         await update($, processIdAtom, () => crypto.randomUUID())
         await sweep($)
+        const orphans = pendingOrphans(await read($, othersAtom), await $.session.cwd())
+        const text = orphansSection(orphans, await $.clock.now())
+        await update($, orphansTextAtom, () => text)
       }
       $.ui.status(statusText(await read($, mineAtom)))
       $.clock.every(TICK_MS, () => void safely($, () => tick($)))
     })
     return next(e)
+  })
+
+  // A subagent's own system prompt replaces the session's, so the section reaches the main loop and its forks.
+  on('prompt.compose', async ($, e, next) => {
+    const composed = await next(e)
+    const text = e.traits.includes('teammate') ? '' : await read($, orphansTextAtom)
+    if (text === '') return composed
+    return { sections: [...composed.sections, { id: ORPHANS_SECTION, scope: 'session' as const, text }] }
   })
 
   on('session.end', async ($, e, next) => {

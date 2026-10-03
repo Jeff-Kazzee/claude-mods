@@ -48,8 +48,21 @@ const world = (on: On, entries: Record<string, unknown> = {}): World => {
   on('turn.start', (_$, e) => ({ turnId: e.turnId }))
   on('turn.complete', (_$, e) => ({ text: e.answer }))
   on('ui.render', () => EMPTY)
+  on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude Code.', scope: 'shared' }] }))
   return w
 }
+
+const compose = async ($: Engine, traits: 'teammate'[] = []) =>
+  (
+    await $.prompt.compose({
+      model: 'claude-opus-5-5',
+      promptModel: 'claude-opus-5-5',
+      surfaces: ['terminal'],
+      tools: [],
+      outputStyle: null,
+      traits,
+    })
+  ).sections
 
 const begin = ($: Engine) => $.session.start({ cwd: CWD, surface: 'terminal', isInteractive: true })
 
@@ -276,3 +289,77 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await pane.unmount()
   })
 }
+
+const running = (id: string, fields: Partial<Delegate> = {}): Delegate =>
+  ({
+    id,
+    kind: 'agent',
+    processId: 'dead',
+    sessionId: 'S0',
+    cwd: 'c:/work',
+    description: `Task ${id}`,
+    brief: `Do ${id}.`,
+    isBackground: true,
+    startedAt: T0 - 20 * 60_000,
+    lastActivityAt: T0 - 12 * 60_000,
+    state: 'running',
+    ...fields,
+  }) as Delegate
+
+const deadProcess = (...delegates: Delegate[]): ProcessRecord => ({ processId: 'dead', heartbeatAt: T0 - 10 * 60_000, delegates })
+
+test('a restart puts the orphans in the system prompt, and the text holds for the session', async ($, on) => {
+  const w = world(on, {
+    'proc:dead': deadProcess(
+      running('a9', { description: 'Review PR 101', briefPath: 'C:\briefs\pr101.md' }),
+      running('b3', {
+        kind: 'shell',
+        description: 'Deploy with ghp_AbCdEfGhIjKlMnOpQrStUvWxYz012345',
+        startedAt: T0 - 3 * 60 * 60_000,
+      }),
+      running('far', { cwd: 'C:/elsewhere' }),
+      { ...running('settled'), state: 'orphaned', orphanedAt: T0 - 60_000, isSettled: true },
+      { ...running('done'), state: 'done-unread', finishedAt: T0 - 60_000, outcome: 'completed', isNagged: false },
+    ),
+  })
+  await begin($)
+  const first = await compose($)
+
+  expect(first.map(section => section.id)).toEqual(['intro', 'delegate-ledger:orphans'])
+  const text = first.at(-1)?.text ?? ''
+  expect(first.at(-1)?.scope).toBe('session')
+  expect(text.split('\n').filter(line => line.startsWith('- '))).toEqual([
+    '- Agent "Review PR 101", brief C:\briefs\pr101.md, started 20m ago.',
+    '- Background command "Deploy with [redacted]", no brief path recorded, started 3h ago.',
+  ])
+  expect(text).toContain('Check what each one finished before you rely on it.')
+  expect(text.includes(String.fromCharCode(0x2014)) || text.includes(';')).toBe(false)
+
+  await w.clock.advance(2 * 60 * 60_000)
+  await begin($)
+  const band = await $.ui.mount({
+    plugin: 'delegate-ledger',
+    surface: 'terminal',
+    component: 'AbovePrompt',
+    props: { hasSurvey: false, isWorking: false, maxRows: 12, bodyColumns: 100, scroll: { offset: 0, bodyRows: 11 }, view: {} },
+  })
+  await band.press({ key: 'relaunch:a9' })
+  await band.unmount()
+  expect(w.fills).toHaveLength(1)
+  expect((await compose($)).at(-1)?.text).toBe(text)
+})
+
+test('the orphans section stops at five, and is left out with no orphans or for a teammate', async ($, on) => {
+  world(on, { 'proc:dead': deadProcess(...['o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7'].map(id => running(id))) })
+  await begin($)
+
+  const lines = ((await compose($)).at(-1)?.text ?? '').split('\n').filter(line => line.startsWith('- '))
+  expect(lines).toHaveLength(5)
+  expect((await compose($, ['teammate'])).map(section => section.id)).toEqual(['intro'])
+})
+
+test('a fresh start with no dead process adds no section', async ($, on) => {
+  world(on)
+  await begin($)
+  expect((await compose($)).map(section => section.id)).toEqual(['intro'])
+})
