@@ -20,5 +20,6 @@ The idea: no job is done because the agent says so. Every job is small enough to
    Done when every placeholder holds a value or the one question is asked.
 3. Pick the run folder: the owning project's `wiki/runs/YYYY-MM-DD-<slug>/`. When a `progress.md` for this task exists there, resume from its recorded next node.
 4. Run the prompt from Phase 0, or from the resume point.
+5. Phase 1 approval, Jeff's rule (2026-11-01): when `graph.md` has three nodes or fewer and no node publishes, sends, pays, deletes, or edits outside `{{SCOPE}}`, write `graph.md` and run without waiting. Record "approval skipped: small graph" in `progress.md`. Any larger or risky graph stops for approval as the prompt says.
 
 Arguments: $ARGUMENTS
