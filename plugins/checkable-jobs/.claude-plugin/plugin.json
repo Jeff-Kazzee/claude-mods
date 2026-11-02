@@ -1,6 +1,6 @@
 {
   "name": "checkable-jobs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Breaks work into a graph of small checkable jobs, each with one input, one output, and one check, and passes a job only on saved evidence.",
   "author": {
     "name": "Jeff Kazzee"
