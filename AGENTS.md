@@ -12,7 +12,8 @@ its tests.
 - Work on `main`. Commit each mod change with its tests passing.
 - The installed copy lives in `~/.claude/plugins/cache/jeff-mods/`. After a change, run
   `claude plugin marketplace update jeff-mods`, then `claude plugin update <name>@jeff-mods`, and restart Claude Code or
-  run `/reload-plugins`.
+  run `/reload-plugins`. Bump `version` in the mod's `plugin.json` first, or `claude plugin update` keeps the old
+  cached copy (seen 2026-11-01).
 - To develop a mod live, load the source folder with `claude --plugin-dir plugins/<name>`, or ask Claude to load the
   `plugin-authoring` skill and copy the mod into that session's dev-mods folder for hot reload.
 
