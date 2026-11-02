@@ -12,7 +12,7 @@ claude plugin install peanut-gallery@jeff-mods
 claude plugin install delegate-ledger@jeff-mods
 claude plugin install taste-fork@jeff-mods
 claude plugin install hillclimb-loop@jeff-mods
-claude plugin install autoresearch@jeff-mods
+claude plugin install checkable-jobs@jeff-mods
 ```
 
 Installed plugins load in every new session. After you change a mod here, run
@@ -64,10 +64,10 @@ fresh, keeps the change only when the weighted score rises and no guard drops, a
 target, the budget, or a run of rounds with no gain. Start with `/climb start <path to rubric.json>`. The template is
 `plugins/hillclimb-loop/examples/lint-climb/`. It commits kept rounds in the workdir and never pushes.
 
-### autoresearch
+### checkable-jobs
 
-A skill, not a hook mod. It runs a task as a graph of small nodes, each with one input, one output, and one check. It
+A skill, not a hook mod. It breaks work into a graph of small checkable jobs (nodes), each with one input, one output, and one check. It
 records a baseline, gates risky edges on evidence in `checks.md`, and writes `graph.md` and `progress.md` so a fresh
-session can resume. Start with `/autoresearch <task>`. The prompt text is canonical in
-`C:/Users/jeffk/the-little-ai-company-OS/prompts/harness/autoresearch-graph-loop.md`, and the skill only points there.
-Added on 2026-11-01 at Jeff's request. For one rubric score, use `hillclimb-loop` instead.
+session can resume. Start with `/checkable-jobs <task>`, or let Claude reach for it on any multi-step task. The prompt text is canonical in
+`C:/Users/jeffk/the-little-ai-company-OS/prompts/harness/checkable-jobs-graph.md`, and the skill only points there.
+Added on 2026-11-01 at Jeff's request as `autoresearch`, renamed the same day so the name says what it does. For one rubric score, use `hillclimb-loop` instead.
