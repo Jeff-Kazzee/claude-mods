@@ -12,6 +12,7 @@ claude plugin install peanut-gallery@jeff-mods
 claude plugin install delegate-ledger@jeff-mods
 claude plugin install taste-fork@jeff-mods
 claude plugin install hillclimb-loop@jeff-mods
+claude plugin install autoresearch@jeff-mods
 ```
 
 Installed plugins load in every new session. After you change a mod here, run
@@ -62,3 +63,11 @@ Climbs a rubric round after round. Each round aims one change at the weakest cri
 fresh, keeps the change only when the weighted score rises and no guard drops, and reverts otherwise. It stops at the
 target, the budget, or a run of rounds with no gain. Start with `/climb start <path to rubric.json>`. The template is
 `plugins/hillclimb-loop/examples/lint-climb/`. It commits kept rounds in the workdir and never pushes.
+
+### autoresearch
+
+A skill, not a hook mod. It runs a task as a graph of small nodes, each with one input, one output, and one check. It
+records a baseline, gates risky edges on evidence in `checks.md`, and writes `graph.md` and `progress.md` so a fresh
+session can resume. Start with `/autoresearch <task>`. The prompt text is canonical in
+`C:/Users/jeffk/the-little-ai-company-OS/prompts/harness/autoresearch-graph-loop.md`, and the skill only points there.
+Added on 2026-11-01 at Jeff's request. For one rubric score, use `hillclimb-loop` instead.

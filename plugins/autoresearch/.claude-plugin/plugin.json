@@ -1,0 +1,6 @@
+{
+  "name": "autoresearch",
+  "version": "0.1.0",
+  "description": "Runs a task as a graph of small checked nodes with a baseline, evidence gates, and resume files.",
+  "author": { "name": "Jeff Kazzee" }
+}
