@@ -1,0 +1,8 @@
+{
+  "name": "hill-climb",
+  "version": "0.1.0",
+  "description": "Improves work in scored rounds against a frozen check or a council of read-only judges from other providers, keeping only measured gains, until a target the judges never see is met.",
+  "author": {
+    "name": "Jeff Kazzee"
+  }
+}

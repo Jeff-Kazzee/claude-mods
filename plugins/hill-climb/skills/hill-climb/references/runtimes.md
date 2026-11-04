@@ -1,0 +1,97 @@
+# Runtimes
+
+How this skill reaches each agent runtime on Jeff's laptop, and how a parent
+agent calls another CLI as a read-only judge. Facts were checked on
+2026-11-03 against the installed versions named below. Re-check `--help` after
+any CLI update before trusting a flag.
+
+## One source, four readers
+
+The skill lives once, in the `jeff-mods` marketplace repo:
+`C:/Users/jeffk/Development/projects/claude-mods/plugins/hill-climb/skills/hill-climb/`.
+Every runtime reads that folder. Edit it there, bump `version` in
+`plugins/hill-climb/.claude-plugin/plugin.json`, and refresh each runtime.
+
+| Runtime | Version checked | How it loads the skill | Refresh after an edit |
+|---|---|---|---|
+| Claude Code | 2.1.314 | Plugin `hill-climb@jeff-mods`. Invoke as `/hill-climb:hill-climb`, or let the description trigger it. | `claude plugin marketplace update jeff-mods`, `claude plugin update hill-climb@jeff-mods`, then `/reload-plugins` |
+| Codex CLI | 0.166.0 | Plugin `hill-climb@jeff-mods`. Codex reads Claude-format marketplaces (it already loads `pstack@pstack-claude` from a local Claude marketplace). | `codex plugin add hill-climb@jeff-mods` again, then a new session |
+| Cline | CLI 3.0.74, VS Code extension 4.1.26 | Junction `~/.cline/skills/hill-climb` to the skill folder. Cline reads global skills from `~/.cline/skills`. | Automatic, or a new task |
+| DeepSeek Harness | 0.2.1-rc.5 | An entry in `customSkillDirs` of the `skill-filesystem` entry in `~/.dsh/profiles/desktop/cordis.patch.yml`, pointing at `plugins/hill-climb/skills`. | New session |
+
+Paths `~/.agents/skills` and `~/.claude/skills` stay empty by machine law, even
+though Codex and Cline would also read them.
+
+## Calling a judge from each parent
+
+The judge brief is in `council.md`. Write it to a file and pass the file, so
+quoting never mangles it. Every route below is read-only by its flags. None of
+them has been tested as a hard isolation boundary against plugins, hooks, or MCP
+servers the judge's runtime loads, so the brief also says "review only."
+
+### Codex as judge (GPT-6.1 Sol)
+
+```powershell
+codex -a never exec -s read-only -m <model> `
+  -c 'model_reasoning_effort="high"' `
+  -C <repo or artifact folder> --skip-git-repo-check `
+  -o <run>/round-<n>-sol.txt -i <screenshot.png> `
+  (Get-Content <run>/round-<n>-brief.md -Raw)
+```
+
+`-a never` is a top-level flag and goes before `exec`. `-i` repeats for several
+images. Read the model id from `~/.codex/config.toml` rather than guessing it.
+
+### Claude Code as judge (Opus 5.5)
+
+```powershell
+claude -p --permission-mode plan --permission-prompts none `
+  --tools 'Read,Grep,Glob' --disallowedTools 'Bash,PowerShell,Write,Edit,Agent' `
+  --strict-mcp-config --model opus --output-format json `
+  --add-dir <repo or artifact folder> `
+  (Get-Content <run>/round-<n>-brief.md -Raw) > <run>/round-<n>-opus.json
+```
+
+`--allowedTools` alone does not restrict the tool set. `--tools` does. Inside a
+Claude Code parent, a subagent with `tools: Read, Glob, Grep` and a fresh
+context works too. The existing `~/.claude/agents/code-reviewer.md` declares no
+tool limit, so it is not read-only.
+
+### Cline as judge (any provider Cline can reach)
+
+```powershell
+cline --plan --auto-approve false --json --cwd <folder> `
+  --provider <id> --model <model> (Get-Content <run>/round-<n>-brief.md -Raw)
+```
+
+In Cline, `-p` means plan mode, not print. A bare prompt without `--plan` runs
+in act mode with auto-approve on, so the flag is mandatory for a judge. Cline is
+the cheapest route to a third provider: Kimi, GLM, Qwen, MiniMax, or DeepSeek.
+
+### DeepSeek Harness as parent
+
+DSH reaches several providers without leaving the session:
+
+- `claude_code` tool in `read` mode: Opus or Sonnet as a judge.
+- `advisor` tool, `reviewer` preset: GPT-6.1 Sol, one turn, no tools. Paste the
+  artifacts as text. It cannot open images.
+- `handoff` with role `reviewer` and a `provider` and `model` override: any
+  configured provider, read-only by role. Configured third-provider routes
+  include `meta/muse-wonder` and the `cline-pass/*` models. Their access was
+  not tested on 2026-11-03.
+
+### Gemini
+
+Gemini CLI is not installed on this machine (2026-11-03). The jester stays
+`not run` until it is.
+
+## Worker and judge pairings
+
+| Worker runtime | Judge 1, every round | Judge 2, joins at target | Judge 3 |
+|---|---|---|---|
+| Claude Code (Opus) | Codex, Sol | Claude, Opus, fresh context, same family | Cline or DSH third provider |
+| Codex (Sol) | Claude Code, Opus | Codex, Sol, fresh context, same family | Cline or DSH third provider |
+| DSH (Opus lead) | `handoff` reviewer on Sol | `claude_code` read mode, Opus | `handoff` reviewer on a third provider |
+| Cline (any model) | Codex, Sol | Claude Code, Opus | another Cline provider |
+
+The worker's own family can sit on the council but never decides a round alone.

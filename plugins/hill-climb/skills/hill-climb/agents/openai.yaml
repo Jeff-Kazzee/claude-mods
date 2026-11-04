@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hill Climb"
+  short_description: "Improve work in scored rounds until blind judges or a frozen check hit the target"
+  default_prompt: "Use $hill-climb on this. Brief: <the complaint as given>. Target: <score>. Round limit: 4."

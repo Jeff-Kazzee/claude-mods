@@ -28,6 +28,11 @@
       "name": "checkable-jobs",
       "description": "Breaks work into a graph of small checkable jobs, each with one input, one output, and one check, and passes a job only on saved evidence.",
       "source": "./plugins/checkable-jobs"
+    },
+    {
+      "name": "hill-climb",
+      "description": "Improves work in scored rounds against a frozen check or a council of read-only judges from other providers, keeping only measured gains, until a target the judges never see is met.",
+      "source": "./plugins/hill-climb"
     }
   ]
 }

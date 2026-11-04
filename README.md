@@ -7,13 +7,19 @@ at https://claude.ai/artifact/9zmckwzzHEziGyKzwrXtFM.
 ## Install
 
 ```sh
-claude plugin marketplace add C:/Users/jeffk/AIS-OS/projects/claude-mods
+claude plugin marketplace add C:/Users/jeffk/Development/projects/claude-mods
 claude plugin install peanut-gallery@jeff-mods
 claude plugin install delegate-ledger@jeff-mods
 claude plugin install taste-fork@jeff-mods
 claude plugin install hillclimb-loop@jeff-mods
 claude plugin install checkable-jobs@jeff-mods
+claude plugin install hill-climb@jeff-mods
 ```
+
+`hill-climb` is the one mod other runtimes load too. Codex installs it with
+`codex plugin marketplace add C:/Users/jeffk/Development/projects/claude-mods` and
+`codex plugin add hill-climb@jeff-mods`. Cline and DeepSeek Harness read its skill folder directly. The wiring for
+all four is in `plugins/hill-climb/skills/hill-climb/references/runtimes.md`.
 
 Installed plugins load in every new session. After you change a mod here, run
 `claude plugin marketplace update jeff-mods` and `claude plugin update <name>@jeff-mods`.
@@ -71,3 +77,14 @@ records a baseline, gates risky edges on evidence in `checks.md`, and writes `gr
 session can resume. Start with `/checkable-jobs <task>`, or let Claude reach for it on any multi-step task. The prompt text is canonical in
 `C:/Users/jeffk/the-little-ai-company-OS/prompts/harness/checkable-jobs-graph.md`, and the skill only points there.
 Added on 2026-11-01 at Jeff's request as `autoresearch`, renamed the same day so the name says what it does. For one rubric score, use `hillclimb-loop` instead.
+
+### hill-climb
+
+A skill, not a hook mod, and the only mod here with no Claude-only hooks, so Codex, Cline and DeepSeek Harness load
+it too. It runs Jeff's improvement loop: frame the brief, prove the scorer can see the failure, change one thing per
+round, keep it only when a frozen check or a council of read-only judges from other providers says it helped, and
+stop at a target the judges never see. It covers UI climbs, evals built from past agent failures, and the
+correctness-then-size order. Say "hill climb" or "council". Added 2026-11-03 at Jeff's request, merging Theo's
+council method, pstack's measurement rules and Matt Pocock's feedback-loop rules. The method and its sources are in
+`C:/Users/jeffk/the-little-ai-company-OS/Brain/concepts/hill-climbing-with-judges.md`. `hillclimb-loop` stays the
+automated runner for a rubric with programmatic measures inside Claude Code.
