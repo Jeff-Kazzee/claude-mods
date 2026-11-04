@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flows"
+  short_description: "Pick the flow for this task and run its skills and gates in order"
+  default_prompt: "Use $flows to pick the flow for this task and run it."
