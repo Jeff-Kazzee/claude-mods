@@ -30,9 +30,14 @@
       "source": "./plugins/checkable-jobs"
     },
     {
-      "name": "hill-climb",
-      "description": "Improves work in scored rounds against a frozen check or a council of read-only judges from other providers, keeping only measured gains, until a target the judges never see is met.",
-      "source": "./plugins/hill-climb"
+      "name": "workflow",
+      "description": "How Jeff's agents work. The flows skill routes each kind of task through the right skills and gates. The hill-climb skill improves work in scored rounds against a frozen check or a council of read-only judges.",
+      "source": "./plugins/workflow"
+    },
+    {
+      "name": "tstack",
+      "description": "Theo's tstack skills (council, sol-loop, full-send, full-stop, file-pr, babysit-pr, takeover, modernize, leaving-pr-comments), vendored under MIT with an 'On Jeff's machine' section on each skill for the Git law, dev base branch, and local judge routes.",
+      "source": "./plugins/tstack"
     }
   ]
 }

@@ -79,7 +79,8 @@ references entered the panel, so add them on the second climb at the latest.
 
 When the goal is parity with a known design (a port, a regression, a pixel
 spec), the scorer is an image diff against a frozen baseline, not a council. A
-nonzero diff fails. Use pstack `visual-parity`.
+nonzero diff fails. Follow the visual-parity playbook in pstack's
+`poteto-mode` skill (`skills/poteto-mode/playbooks/visual-parity.md`).
 
 ## Make the change readable
 

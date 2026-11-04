@@ -13,13 +13,14 @@ claude plugin install delegate-ledger@jeff-mods
 claude plugin install taste-fork@jeff-mods
 claude plugin install hillclimb-loop@jeff-mods
 claude plugin install checkable-jobs@jeff-mods
-claude plugin install hill-climb@jeff-mods
+claude plugin install workflow@jeff-mods
+claude plugin install tstack@jeff-mods
 ```
 
-`hill-climb` is the one mod other runtimes load too. Codex installs it with
-`codex plugin marketplace add C:/Users/jeffk/Development/projects/claude-mods` and
-`codex plugin add hill-climb@jeff-mods`. Cline and DeepSeek Harness read its skill folder directly. The wiring for
-all four is in `plugins/hill-climb/skills/hill-climb/references/runtimes.md`.
+`workflow` and `tstack` are the mods other runtimes load too. Codex installs them with
+`codex plugin marketplace add C:/Users/jeffk/Development/projects/claude-mods`, then
+`codex plugin add workflow@jeff-mods` and `codex plugin add tstack@jeff-mods`. Cline and DeepSeek Harness read their
+skill folders directly. The wiring for all four is in `plugins/workflow/skills/hill-climb/references/runtimes.md`.
 
 Installed plugins load in every new session. After you change a mod here, run
 `claude plugin marketplace update jeff-mods` and `claude plugin update <name>@jeff-mods`.
@@ -78,13 +79,27 @@ session can resume. Start with `/checkable-jobs <task>`, or let Claude reach for
 `C:/Users/jeffk/the-little-ai-company-OS/prompts/harness/checkable-jobs-graph.md`, and the skill only points there.
 Added on 2026-11-01 at Jeff's request as `autoresearch`, renamed the same day so the name says what it does. For one rubric score, use `hillclimb-loop` instead.
 
-### hill-climb
+### workflow
 
-A skill, not a hook mod, and the only mod here with no Claude-only hooks, so Codex, Cline and DeepSeek Harness load
-it too. It runs Jeff's improvement loop: frame the brief, prove the scorer can see the failure, change one thing per
-round, keep it only when a frozen check or a council of read-only judges from other providers says it helped, and
-stop at a target the judges never see. It covers UI climbs, evals built from past agent failures, and the
-correctness-then-size order. Say "hill climb" or "council". Added 2026-11-03 at Jeff's request, merging Theo's
-council method, pstack's measurement rules and Matt Pocock's feedback-loop rules. The method and its sources are in
-`C:/Users/jeffk/the-little-ai-company-OS/Brain/concepts/hill-climbing-with-judges.md`. `hillclimb-loop` stays the
-automated runner for a rubric with programmatic measures inside Claude Code.
+Two skills with no Claude-only hooks, so Codex, Cline and DeepSeek Harness load them too. Added 2026-11-03 at Jeff's
+request.
+
+- `flows` routes each kind of task (ship, bug, feature, ui, review, revive, perf, eval, verify-setup, intake,
+  handoff) to the ordered skills and gates for it, sets a review depth by risk, and keeps the Git, proof, approval
+  and writing laws in every flow. Say "ship this", "fix this bug", or "which flow".
+- `hill-climb` runs Jeff's improvement loop: frame the brief, prove the scorer can see the failure, change one thing
+  per round, keep it only when a frozen check or a council of read-only judges from other providers says it helped,
+  and stop at an acceptance predicate the judges never see. Say "hill climb" or "council climb". The method and its
+  sources are in `C:/Users/jeffk/the-little-ai-company-OS/Brain/concepts/hill-climbing-with-judges.md`.
+  `hillclimb-loop` stays the automated runner for a rubric with programmatic measures inside Claude Code.
+
+### tstack
+
+Theo's [tstack](https://github.com/t3dotgg/tstack) skills, vendored under its MIT license: council, sol-loop,
+full-send, full-stop, file-pr, babysit-pr, takeover, modernize and leaving-pr-comments. `plugins/tstack/sync.mjs`
+copies them from the checkout at `C:/Users/jeffk/Side Projects/tstack` and appends an "On Jeff's machine" section
+from `plugins/tstack/overlays/` to each one. Those sections hold the local rules: merges go through `agent-git land`
+after Jeff approves the head, the base branch is `dev`, Sol and Opus routes outside T3 Code, and `pr-wait` runs
+under `python` on Windows. After `git -C "C:/Users/jeffk/Side Projects/tstack" pull`, run
+`node plugins/tstack/sync.mjs` and bump the plugin version. `node plugins/tstack/sync.mjs --check` fails when a
+generated file was edited by hand.
