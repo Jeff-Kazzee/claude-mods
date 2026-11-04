@@ -28,7 +28,13 @@ tsc -p plugins/<name>
 ```
 
 `tsc -p` needs the engine-written types in `plugins/<name>/.claude-plugin/types/`, which appear after the engine has
-loaded the mod once. They are not committed.
+loaded the mod once. They are not committed. A skill-only plugin (`checkable-jobs`, `workflow`, `tstack`) has no
+hooks, so `claude plugin test` and `tsc` do not apply to it.
+
+CI (`.github/workflows/ci.yml`) runs on every push to `dev` and every PR into `dev`: `node scripts/ci-check.mjs`
+(manifests, skill frontmatter, no em dashes in authored Markdown), the tstack drift check against upstream at the
+commit in `plugins/tstack/UPSTREAM.md`, and `pr-wait --help`. `agent-git promote` needs those checks green on the dev
+head. Run `node scripts/ci-check.mjs` locally before you push.
 
 Git Bash rewrites an argument that starts with `/` into a Windows path. Set `MSYS_NO_PATHCONV=1` before passing a slash
 command to `claude -p`, or the prompt reaches the model.

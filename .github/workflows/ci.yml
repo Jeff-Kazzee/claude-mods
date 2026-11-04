@@ -1,0 +1,30 @@
+# Checks every dev head and every PR into dev, so agent-git promote finds green CI.
+# Hook mods' own tests need the Claude Code CLI and still run locally (see AGENTS.md).
+name: ci
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Manifests, skill frontmatter, writing law
+        run: node scripts/ci-check.mjs
+      - name: Vendored tstack matches upstream plus overlays
+        run: |
+          commit=$(grep -oE '[0-9a-f]{40}' plugins/tstack/UPSTREAM.md | head -n 1)
+          git clone --quiet https://github.com/t3dotgg/tstack.git "$RUNNER_TEMP/tstack"
+          git -C "$RUNNER_TEMP/tstack" checkout --quiet "$commit"
+          node plugins/tstack/sync.mjs --source "$RUNNER_TEMP/tstack" --check
+      - name: pr-wait and its Windows wrapper start
+        run: |
+          python3 plugins/tstack/skills/babysit-pr/scripts/pr-wait --help > /dev/null
+          python3 plugins/tstack/skills/babysit-pr/scripts/pr-wait-win.py --help > /dev/null
