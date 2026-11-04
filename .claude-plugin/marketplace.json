@@ -28,6 +28,16 @@
       "name": "checkable-jobs",
       "description": "Breaks work into a graph of small checkable jobs, each with one input, one output, and one check, and passes a job only on saved evidence.",
       "source": "./plugins/checkable-jobs"
+    },
+    {
+      "name": "workflow",
+      "description": "How Jeff's agents work. The flows skill routes each kind of task through the right skills and gates. The hill-climb skill improves work in scored rounds against a frozen check or a council of read-only judges.",
+      "source": "./plugins/workflow"
+    },
+    {
+      "name": "tstack",
+      "description": "Theo's tstack skills (council, sol-loop, full-send, full-stop, file-pr, babysit-pr, takeover, modernize, leaving-pr-comments), vendored under MIT with an 'On Jeff's machine' section on each skill for the Git law, dev base branch, and local judge routes.",
+      "source": "./plugins/tstack"
     }
   ]
 }

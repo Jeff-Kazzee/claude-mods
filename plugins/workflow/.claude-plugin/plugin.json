@@ -1,0 +1,8 @@
+{
+  "name": "workflow",
+  "version": "0.2.0",
+  "description": "How Jeff's agents work. The flows skill routes each kind of task through the right skills and gates. The hill-climb skill improves work in scored rounds against a frozen check or a council of read-only judges.",
+  "author": {
+    "name": "Jeff Kazzee"
+  }
+}
