@@ -165,15 +165,16 @@ gh pr create --base dev --title "<title>" --body-file body.md
 node <this skill's folder>/scripts/pr-body.mjs check --pr <number>
 ```
 
-`file-pr` owns the title and the opening steps. `check` fails on a missing or
-out-of-order section, an empty section or label, a bare `N/A`, an unfilled `{{field}}`, an em dash, a missing `Task:` last
-line, and an image that is not on an evidence ref. `--pr` also fails when the
-body does not name the current head, so a push leaves the PR red until the proof
-is redone. Without a signed-in `gh` and a GitHub origin, `check body.md` runs the
-format rules and warns that it skipped the image check, and `check --pr` is not
-available. Evidence refs and GitHub's own `user-attachments` uploads count as
-images on an evidence ref. `check` reads `##` headings only, and it can be fooled
-by a heading placed directly after a `<details>` line with no blank line between.
+`file-pr` owns the title and the opening steps. `check` asks GitHub to render the
+body and judges that HTML, so it reads what a reader sees. It fails on a missing,
+empty or out-of-order section, an empty label, a bare `N/A`, an unfilled `{{field}}`,
+an em dash, a missing `Task:` last line, and an image that is not on an evidence
+ref or a GitHub `user-attachments` upload. `--pr` also fails when the body does not
+name the current head, so a push leaves the PR red until the proof is redone.
+
+`check` needs to reach `api.github.com`. Without a signed-in `gh` and a GitHub
+origin it still renders the body, warns that it skipped the image check, and
+`check --pr` is not available. It is a format check, not a security gate.
 
 Open the PR as a signed-in viewer and confirm each image draws. `check` proves
 the bytes are on GitHub, not that they display. If no signed-in browser is
