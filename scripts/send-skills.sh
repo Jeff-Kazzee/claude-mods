@@ -24,6 +24,10 @@ tar=$(mktemp)
 trap 'rm -f "$tar"' EXIT
 git archive --format=tar "$rev" plugins/workflow/skills plugins/tstack/skills > "$tar"
 want=$(sha256sum "$tar" | cut -d' ' -f1)
+case "$want" in
+  ????????????????????????????????????????????????????????????????) ;;
+  *) echo "no sha256 for the tar, so nothing was sent" >&2; exit 1 ;;
+esac
 
 remote='
 set -eu
@@ -36,7 +40,7 @@ t=$(mktemp)
 trap '"'"'rm -f "$t"; rm -rf "$d.new"'"'"' EXIT
 cat > "$t"
 got=$(sha256sum "$t" | cut -d" " -f1)
-if [ "$got" != '"$want"' ]; then
+if [ "$got" != "'"$want"'" ]; then
   echo "hash mismatch: got $got, old install unchanged" >&2
   exit 1
 fi
