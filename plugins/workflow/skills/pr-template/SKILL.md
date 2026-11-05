@@ -67,7 +67,7 @@ Paste logs inline: a short one in a fenced block, a long one inside `<details>`.
 ## 3. Write the body
 
 Write to a file, with every `{{field}}` filled. Keep every heading. A section
-that does not apply says `N/A:` and why, except What Changed and Risk, which every
+that does not apply says `N/A:` and why, except What Changed, Risk and Review, which every
 PR has. Keep each `**Label:**` as written, in prose and not in a table. If the repo has
 `.github/pull_request_template.md`, keep its sections and boxes as well, each
 in the closest section here.
