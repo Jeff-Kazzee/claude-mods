@@ -1,6 +1,6 @@
 {
   "name": "tstack",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Theo's tstack skills, vendored under MIT from github.com/t3dotgg/tstack, each with an 'On Jeff's machine' section for the Git law, the dev base branch, and local judge routes.",
   "author": {
     "name": "Theo Browne, packaged by Jeff Kazzee"

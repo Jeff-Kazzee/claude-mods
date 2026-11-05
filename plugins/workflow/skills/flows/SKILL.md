@@ -68,7 +68,8 @@ runtime: Claude Code prefixes plugin skills (`tstack:full-stop`,
 `workflow:hill-climb`, `pstack:interrogate`), and the other runtimes use the
 bare name.
 
-Cline and DeepSeek Harness load `flows`, `hill-climb`, and the tstack skills,
+Cline and DeepSeek Harness load `flows`, `hill-climb`, `pr-template`, and the
+tstack skills,
 but not pstack or Matt Pocock's skills. When a skill a flow names is not in
 your catalog, read its SKILL.md from these folders and follow it:
 
@@ -83,5 +84,6 @@ the `handoff` flow, never the chat history.
 
 - `references/playbooks.md`: the steps of each flow. Read only the section for
   the flow you picked.
+- The `pr-template` skill: the description and evidence every PR carries.
 - The `hill-climb` skill: scored rounds, council judging, and the per-runtime
   judge commands in its `references/runtimes.md`.

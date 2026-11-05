@@ -92,6 +92,8 @@ request.
   and stop at an acceptance predicate the judges never see. Say "hill climb" or "council climb". The method and its
   sources are in `C:/Users/jeffk/the-little-ai-company-OS/Brain/concepts/hill-climbing-with-judges.md`.
   `hillclimb-loop` stays the automated runner for a rubric with programmatic measures inside Claude Code.
+- `pr-template` sets the description every PR carries: ELI5, before and after, proof, testing, risk and checklist.
+  Its `scripts/pr-body.mjs` stores screenshots and video on a `refs/pr-evidence/<task>` ref, and checks the body.
 
 ### tstack
 

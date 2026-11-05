@@ -13,7 +13,7 @@ Edit `overlays/<skill>.md` and run the script again.
 | `babysit-pr/scripts/pr-wait` | `90393f85b95b` |
 | `babysit-pr/scripts/pr-wait-win.py` | `baa80694294e` |
 | `council/SKILL.md` | `c6276f851f92` |
-| `file-pr/SKILL.md` | `066c6d223f6e` |
+| `file-pr/SKILL.md` | `0f562d1ab6ef` |
 | `full-send/SKILL.md` | `c0109e8c4c67` |
 | `full-send/agents/openai.yaml` | `8a1e8ce04a77` |
 | `full-stop/SKILL.md` | `7e4ea62a65db` |
