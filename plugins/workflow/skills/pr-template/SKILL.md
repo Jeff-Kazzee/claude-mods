@@ -166,7 +166,7 @@ node <this skill's folder>/scripts/pr-body.mjs check --pr <number>
 ```
 
 `file-pr` owns the title and the opening steps. `check` fails on a missing or
-out-of-order section, an unfilled `{{field}}`, an em dash, a missing `Task:` last
+out-of-order section, an empty section or label, a bare `N/A`, an unfilled `{{field}}`, an em dash, a missing `Task:` last
 line, and an image that is not on an evidence ref. `--pr` also fails when the
 body does not name the current head, so a push leaves the PR red until the proof
 is redone. Without `gh`, `check body.md` runs the format rules, warns that it

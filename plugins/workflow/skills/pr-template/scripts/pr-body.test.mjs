@@ -44,6 +44,41 @@ test('each required label fails when absent', () => {
   }
 })
 
+test('headings and labels with nothing under them fail', () => {
+  const hollow = `${[
+    '## ELI5', '## What Changed', '**Before:**', '**After:**', '**Mechanism:**', '## Why', '## Linked Issue',
+    '## Proof', '## Testing', '## Risk', '**Level:**', '## AI Disclosure', '## Review', '## Checklist',
+  ].join('\n\n')}\n\nTask: 179\n`
+  const problems = lintBody(hollow)
+  for (const section of ['ELI5', 'Why', 'Linked Issue', 'Proof', 'Testing', 'AI Disclosure', 'Review']) {
+    assert.ok(problems.includes(`empty section: ${section}`), section)
+  }
+  for (const label of ['**Before:**', '**After:**', '**Mechanism:**', '**Level:**']) {
+    assert.ok(problems.includes(`empty ${label}`), label)
+  }
+})
+
+test('a section with only a label stays caught by its label', () => {
+  const body = good.replace('**Level:** filled in abc1234', '**Level:**').replace(/\n- filled in abc1234/g, '')
+  assert.deepEqual(lintBody(body), ['empty **Level:**'])
+})
+
+test('a bare N/A fails and an N/A with a reason passes', () => {
+  const swap = text => good.replace(/(## Linked Issue\n\n).*\n/, `$1${text}\n`)
+  assert.deepEqual(lintBody(swap('N/A:')), ['empty section: Linked Issue'])
+  assert.deepEqual(lintBody(swap('N/A')), ['empty section: Linked Issue'])
+  assert.deepEqual(lintBody(swap('N/A: Jeff asked in chat')), [])
+})
+
+test('a section holding only a fenced block has content', () => {
+  const fenced = good.replace(/(## Why\n\n).*\n/, '$1```text\noutput\n```\n')
+  assert.deepEqual(lintBody(fenced), [])
+})
+
+test('a label filled only by a code span has content', () => {
+  assert.deepEqual(lintBody(good.replace('**Mechanism:** filled in abc1234', '**Mechanism:** `f()`')), [])
+})
+
 test('a {{field}} inside a code span does not count', () => {
   const body = good.replace('filled in abc1234', '`{{ .Values.image }}`')
   assert.deepEqual(lintBody(body), [])

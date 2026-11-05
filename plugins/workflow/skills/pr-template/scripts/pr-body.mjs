@@ -30,16 +30,30 @@ function fail(message) {
   process.exit(1)
 }
 
-function stripCode(text) {
-  return text.replace(/^(`{3,}|~{3,}).*\n[\s\S]*?^\1\s*$/gm, '').replace(/`[^`\n]*`/g, '')
+// Code stays as a marker: its text is not prose, but it does count as content.
+function maskCode(text) {
+  return text.replace(/^(`{3,}|~{3,}).*\n[\s\S]*?^\1\s*$/gm, 'CODE').replace(/`[^`\n]*`/g, 'CODE')
+}
+
+function labelFilled(prose, label) {
+  const escaped = label.replace(/\*/g, '\\*')
+  return new RegExp(`${escaped}\\s*(?!\\*\\*[A-Z][^*\\n]*:\\*\\*|#)\\S`).test(prose)
 }
 
 // Problems a body has on its face, with no network. Pure, so tests can reach every rule.
 export function lintBody(text, head) {
   const problems = []
-  const prose = stripCode(text)
-  const headings = [...prose.matchAll(/^## (.+?)\s*$/gm)].map(m => (m[1] === 'Visual Proof' ? 'Proof' : m[1]))
-  const found = headings.filter(h => SECTIONS.includes(h))
+  const prose = maskCode(text)
+  const parts = prose.split(/^## /m).slice(1).map(part => {
+    const [title, ...rest] = part.split('\n')
+    const heading = title.trim()
+    return { heading: heading === 'Visual Proof' ? 'Proof' : heading, content: rest.join('\n').trim() }
+  })
+  const known = parts.filter(part => SECTIONS.includes(part.heading))
+  const found = known.map(part => part.heading)
+  for (const { heading, content } of known) {
+    if (content === '' || /^N\/A:?$/i.test(content)) problems.push(`empty section: ${heading}`)
+  }
   for (const section of SECTIONS) {
     if (!found.includes(section)) problems.push(`missing section: ${section}`)
   }
@@ -47,6 +61,7 @@ export function lintBody(text, head) {
   if (found.join('|') !== present.join('|')) problems.push(`sections out of order: ${found.join(', ')}`)
   for (const label of ['**Before:**', '**After:**', '**Mechanism:**', '**Level:**']) {
     if (!prose.includes(label)) problems.push(`missing ${label}`)
+    else if (!labelFilled(prose, label)) problems.push(`empty ${label}`)
   }
   if (prose.includes('{{')) problems.push('unfilled {{field}}')
   if (text.includes('\u2014')) problems.push('em dash')
