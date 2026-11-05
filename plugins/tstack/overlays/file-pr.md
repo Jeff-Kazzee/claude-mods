@@ -2,6 +2,9 @@
 
 This section is added by the jeff-mods `tstack` plugin.
 
+- The description follows the `pr-template` skill, which sets its sections, its
+  evidence and its check. That replaces the description guidance above. The
+  title and filing steps above still apply.
 - The base is `dev`, and the head is the `task/<id>-<slug>` branch from
   `agent-git claim`. Put `Task: <id>` on the last line of the description.
 - Jeff's writing law covers the title and description: no em dashes, no

@@ -22,15 +22,16 @@ A change whose scope is already clear, taken to a PR that waits on Jeff.
    or journey that covers the change.
 3. **Build.** The smallest change that does the job. Commit with the trailers
    from step 1.
-4. **Prove.** Run the repo's checks and the verify skill on the head. For UI,
-   run the app and capture the change. Done when every changed behavior has
-   output or a capture you observed in this session.
+4. **Prove.** Run the repo's checks and the verify skill on the head, and
+   capture evidence as `pr-template` step 1 describes. Done when every changed
+   behavior has output or a capture you observed in this session.
 5. **Review by tier.** Low: a fresh-context self-check of the diff. Medium:
    `sol-loop`. High: `council`, then `interrogate` on what survives. Fix only
    what you reproduce on the head.
 6. **Check reach.** For a medium or high tier change, `blast-radius` on the
    diff. Done when the one fact that makes it safe was shown by running code.
-7. **File.** `file-pr`, base `dev`. Then `babysit-pr` until checks are green
+7. **File.** `file-pr`, base `dev`, with the description from `pr-template`.
+   Then `babysit-pr` until checks are green
    and every bot finding is fixed or declined with a reason.
 8. **Hand off.** `full-stop`. A session that did not build the change runs the
    verify skill on the head and records `agent-git receipt`. Stage
