@@ -98,7 +98,9 @@ function gifOf(video, dir) {
   try {
     execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-t', '30', '-i', video, '-vf', filter, gif], { stdio: 'pipe' })
   } catch (error) {
-    fail(`ffmpeg could not make a preview of ${video}: ${error.message.split('\n')[0]}`)
+    if (error.code !== 'ENOENT') fail(`ffmpeg could not make a preview of ${video}: ${error.message.split('\n')[0]}`)
+    console.error(`no ffmpeg here, so ${basename(video)} gets a plain link and no preview`)
+    return undefined
   }
   return gif
 }
@@ -141,7 +143,8 @@ function attach(args) {
     }
     const items = files.map(file => {
       const video = VIDEOS.has(extname(file).toLowerCase())
-      return { name: add(resolve(file)), preview: video ? add(gifOf(resolve(file), scratch)) : undefined }
+      const gif = video ? gifOf(resolve(file), scratch) : undefined
+      return { name: add(resolve(file)), video, preview: gif && add(gif) }
     })
 
     const tree = run('git', ['mktree'], `${[...entries.values()].join('\n')}\n`)
@@ -162,17 +165,30 @@ function attach(args) {
     if (run('git', ['ls-remote', 'origin', ref]).split(/\s/)[0] !== commit) fail(`push did not land on ${ref}`)
 
     const url = name => `https://github.com/${repo}/blob/${commit}/${encodeURIComponent(name)}?raw=true`
-    for (const { name, preview } of items) {
-      console.log(preview ? `[![${name}](${url(preview)})](${url(name)})` : `![${name}](${url(name)})`)
+    for (const { name, video, preview } of items) {
+      if (preview) console.log(`[![${name}](${url(preview)})](${url(name)})`)
+      else console.log(video ? `[${name}](${url(name)})` : `![${name}](${url(name)})`)
     }
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
 }
 
+function hasGh() {
+  try {
+    run('gh', ['--version'])
+    return true
+  } catch {
+    return false
+  }
+}
+
 function check(args) {
   const prAt = args.indexOf('--pr')
-  const repo = originRepo()
+  const online = hasGh()
+  if (prAt >= 0 && !online) fail('check --pr needs gh. Run it on a host with gh signed in.')
+  if (!online) console.error('no gh here, so the image check was skipped')
+  const repo = online ? originRepo() : undefined
   let body
   let head
   if (prAt >= 0) {
@@ -185,7 +201,7 @@ function check(args) {
     fail('usage: pr-body.mjs check <body.md> | --pr <number>')
   }
   body = body.replace(/\r\n/g, '\n')
-  const problems = [...lintBody(body, head), ...pinProblems(body, repo)]
+  const problems = [...lintBody(body, head), ...(online ? pinProblems(body, repo) : [])]
   if (problems.length > 0) fail(problems.join('\n'))
   console.log(`ok: ${SECTIONS.length} sections${head ? `, head ${head.slice(0, 7)}` : ''}`)
 }
