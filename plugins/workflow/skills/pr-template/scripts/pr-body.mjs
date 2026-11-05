@@ -8,97 +8,19 @@
 // attach stores files on refs/pr-evidence/<task> and prints Markdown for them.
 // check asks GitHub to render the body and judges the HTML, so what it reads is what a reader
 // sees. It exits 1 with one line per problem.
+//
+// This file always runs. Installed copies reach it through links, so it holds no "am I the main
+// module" guard. Tests import rules.mjs.
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, extname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { classifyMedia, fail, lintBody, render, run, SECTIONS, VIDEOS } from './rules.mjs'
 
-export const SECTIONS = ['ELI5', 'What Changed', 'Why', 'Linked Issue', 'Proof', 'Testing', 'Risk', 'AI Disclosure',
-  'Review', 'Checklist']
-const LABELS = ['Before', 'After', 'Mechanism', 'Level']
 const IMAGES = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp'])
-const VIDEOS = new Set(['.mp4', '.webm', '.mov'])
 const MAX_BYTES = 50 * 1024 * 1024
-const PIN = /^https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/blob\/([0-9a-f]{40})\/([^?#]+)\?raw=true$/
-const BROWSER_UPLOAD = /^https:\/\/(github\.com\/user-attachments\/|private-user-images\.githubusercontent\.com\/)/
 const BOM = String.fromCharCode(0xfeff)
-const EM_DASH = String.fromCharCode(0x2014)
-
-function run(cmd, args, input) {
-  return execFileSync(cmd, args, { encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'pipe'] }).trim()
-}
-
-// Throws, so a cleanup in a finally block still runs. The catch at the bottom prints it.
-function fail(message) {
-  throw new Error(message)
-}
-
-function textOf(html) {
-  return html.replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;|&#\d+;/g, ' ').replace(/\s+/g, ' ').trim()
-}
-
-function isBare(text) {
-  return /^\W*(n\/?a|none)\W*$/i.test(text)
-}
-
-function hasContent(html) {
-  const text = textOf(html)
-  return /<img\b/.test(html) || (text !== '' && !isBare(text))
-}
-
-// Problems in a body, from GitHub's HTML for it. Rules about the source text read the raw body.
-export function lintBody(html, raw, head) {
-  const problems = []
-  const sections = html.split(/(?=<h2[\s>])/).filter(part => part.startsWith('<h2')).map(part => {
-    const [, title, rest] = part.match(/^<h2[^>]*>([\s\S]*?)<\/h2>([\s\S]*)$/)
-    const heading = textOf(title)
-    return { heading: heading === 'Visual Proof' ? 'Proof' : heading, content: rest }
-  })
-  const known = sections.filter(section => SECTIONS.includes(section.heading))
-  const found = known.map(section => section.heading)
-  for (const { heading, content } of known) {
-    if (!hasContent(content)) problems.push(`empty section: ${heading}`)
-  }
-  for (const section of SECTIONS) {
-    if (!found.includes(section)) problems.push(`missing section: ${section}`)
-  }
-  const present = SECTIONS.filter(section => found.includes(section))
-  if (found.join('|') !== present.join('|')) problems.push(`sections out of order: ${found.join(', ')}`)
-  for (const label of LABELS) {
-    const value = html.match(new RegExp(`<strong>${label}:</strong>([\\s\\S]*?)(?=</p>|</li>|<strong>[^<]*:</strong>)`))
-    if (!value) problems.push(`missing **${label}:**`)
-    else if (!hasContent(value[1])) problems.push(`empty **${label}:**`)
-  }
-  const prose = html.replace(/<code[\s>][\s\S]*?<\/code>/g, '')
-  if (prose.includes('{{')) problems.push('unfilled {{field}}')
-  if (raw.includes(EM_DASH)) problems.push('em dash')
-  if (!/\n\s*Task: (\d+|none)\s*$/.test(raw)) problems.push('last line is not Task: <id or none>')
-  if (head && !raw.includes(head.slice(0, 7))) problems.push(`body does not name the head ${head.slice(0, 7)}`)
-  return problems
-}
-
-function attribute(tag, name) {
-  return tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1]?.replace(/&amp;/g, '&')
-}
-
-// Sorts what a reader will load: pins on this repo to look up, and problems found on sight.
-export function classifyMedia(html, repo) {
-  const wanted = repo.toLowerCase()
-  const images = [...html.matchAll(/<img\b[^>]*>/g)].map(m => attribute(m[0], 'data-canonical-src') ?? attribute(m[0], 'src'))
-  const links = [...html.matchAll(/<a\b[^>]*>/g)].map(m => attribute(m[0], 'href'))
-    .filter(url => url?.match(PIN)?.[1].toLowerCase() === wanted)
-  const pins = []
-  const problems = []
-  for (const url of new Set([...images, ...links])) {
-    if (BROWSER_UPLOAD.test(url)) continue
-    const pin = url?.match(PIN)
-    if (pin?.[1].toLowerCase() === wanted) pins.push({ url, sha: pin[2], path: pin[3] })
-    else problems.push(`not on an evidence ref: ${url}`)
-  }
-  return { pins, problems }
-}
 
 // A pin must be on a commit a refs/pr-evidence ref still holds. A contents lookup alone is not
 // enough: GitHub answered one for a commit whose push was rejected.
@@ -144,16 +66,6 @@ function signedIn() {
   } catch {
     return false
   }
-}
-
-// GitHub renders for anyone, so a host with no login can check a body too.
-export async function render(text, repo, online) {
-  const request = JSON.stringify({ text, mode: 'gfm', context: repo })
-  if (online) return run('gh', ['api', 'markdown', '--input', '-'], request)
-  const response = await fetch('https://api.github.com/markdown', { method: 'POST', body: request })
-    .catch(error => fail(`could not reach GitHub to render this body: ${error.message}`))
-  if (!response.ok) fail(`GitHub would not render this body: HTTP ${response.status}`)
-  return response.text()
 }
 
 function storedName(path) {
@@ -286,14 +198,12 @@ async function check(args) {
   console.log(`ok: ${SECTIONS.length} sections${head ? `, head ${head.slice(0, 7)}` : ''}`)
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [command, ...args] = process.argv.slice(2)
-  try {
-    if (command === 'attach') attach(args)
-    else if (command === 'check') await check(args)
-    else fail('usage: pr-body.mjs attach|check')
-  } catch (error) {
-    console.error(error.stderr?.toString().trim() || error.message)
-    process.exitCode = 1
-  }
+const [command, ...args] = process.argv.slice(2)
+try {
+  if (command === 'attach') attach(args)
+  else if (command === 'check') await check(args)
+  else fail('usage: pr-body.mjs attach|check')
+} catch (error) {
+  console.error(error.stderr?.toString().trim() || error.message)
+  process.exitCode = 1
 }

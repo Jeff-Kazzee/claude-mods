@@ -80,3 +80,5 @@ Implemented with Claude Code (Claude Opus 5.5) and reviewed by the author.
 - [x] `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` pass (or CI will cover, local preferred)
 
 🤖 Generated with Claude Code
+
+Task: none

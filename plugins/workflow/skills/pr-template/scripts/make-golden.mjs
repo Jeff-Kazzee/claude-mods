@@ -5,7 +5,7 @@
 import { createHash } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
 import { lintCases, mediaCases, repo } from './cases.mjs'
-import { render } from './pr-body.mjs'
+import { render } from './rules.mjs'
 
 const golden = {}
 for (const [name, { body }] of Object.entries({ ...lintCases, ...mediaCases })) {

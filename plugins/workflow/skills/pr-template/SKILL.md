@@ -47,9 +47,10 @@ Run it inside a checkout of the repo, on a host with `gh` signed in. It prints
 one Markdown line per file. Paste those lines into the body.
 
 **No GitHub login on this host** (a Daytona sandbox, for one). Capture and write
-`body.md` here, and run `check body.md`. Copy the media and `body.md` out to a
-host with `gh`, then run `attach`, paste the lines, and open the PR there. Keep
-GitHub tokens out of sandboxes.
+`body.md` here, with each file's name where its image will go, and run
+`check body.md`. Copy the media and `body.md` out to a host with `gh`, then run
+`attach`, swap the names for the printed lines, and open the PR there. Keep GitHub
+tokens out of sandboxes.
 
 - **Video.** GitHub strips `<video>` tags and shows an `.mp4` URL as a plain
   link. `attach` makes a GIF of the first 30 seconds and prints it linked to the
@@ -170,7 +171,7 @@ body and judges that HTML, so it reads what a reader sees. It fails on a missing
 empty or out-of-order section, an empty label, a bare `N/A`, an unfilled `{{field}}`,
 an em dash, a missing `Task:` last line, and an image that is not on an evidence
 ref or a GitHub `user-attachments` upload. `--pr` also fails when the body does not
-name the current head, so a push leaves the PR red until the proof is redone.
+name the current head, so after a push it fails until the proof is redone.
 
 `check` needs to reach `api.github.com`. Without a signed-in `gh` and a GitHub
 origin it still renders the body, warns that it skipped the image check, and
