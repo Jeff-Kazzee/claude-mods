@@ -7,8 +7,9 @@
 #   scripts/send-skills.sh origin/dev ssh linveo-16gb
 #
 # Installs to ~/.local/share/jeff-skills and links each skill into ~/.agents/skills (Codex)
-# and ~/.claude/skills (Claude Code). A real file in the way is reported and kept. Rerun to
-# update. Prints the sha256 of the tar on both sides and fails when they differ.
+# and ~/.claude/skills (Claude Code). Anything in a link's way that this script did not make
+# is reported and kept. Rerun to update. The host checks the tar's sha256 before it touches
+# the old install, so a damaged transfer leaves that install as it was.
 set -eu
 
 if [ "$#" -lt 2 ]; then
@@ -26,10 +27,20 @@ want=$(sha256sum "$tar" | cut -d' ' -f1)
 
 remote='
 set -eu
+case "${HOME:-}" in
+  /?*) ;;
+  *) echo "HOME must be an absolute path below /" >&2; exit 1 ;;
+esac
 d=$HOME/.local/share/jeff-skills
 t=$(mktemp)
+trap '"'"'rm -f "$t"; rm -rf "$d.new"'"'"' EXIT
 cat > "$t"
-sha256sum "$t" | cut -d" " -f1
+got=$(sha256sum "$t" | cut -d" " -f1)
+if [ "$got" != '"$want"' ]; then
+  echo "hash mismatch: got $got, old install unchanged" >&2
+  exit 1
+fi
+echo "$got"
 rm -rf "$d.new"
 mkdir -p "$d.new"
 tar -xf "$t" -C "$d.new"
@@ -46,10 +57,15 @@ for r in .agents/skills .claude/skills; do
   done
   for s in "$d"/plugins/*/skills/*; do
     l=$HOME/$r/$(basename "$s")
-    if [ -e "$l" ] && [ ! -L "$l" ]; then
+    if [ -L "$l" ]; then
+      case "$(readlink "$l")" in
+        "$d"/*) ln -sfn "$s" "$l" ;;
+        *) echo "kept $l, it links somewhere else" ;;
+      esac
+    elif [ -e "$l" ]; then
       echo "kept $l, a real file is in the way"
     else
-      ln -sfn "$s" "$l"
+      ln -s "$s" "$l"
     fi
   done
 done
