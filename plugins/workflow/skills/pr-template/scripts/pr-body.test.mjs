@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { lintBody } from './pr-body.mjs'
+import { classifyMedia, lintBody } from './pr-body.mjs'
 
 const skill = readFileSync(new URL('../SKILL.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const template = skill.match(/^````markdown\n([\s\S]*?)^````$/m)[1]
@@ -95,4 +95,110 @@ test('a body that does not end on the Task line fails', () => {
 test('the head must appear when one is given', () => {
   assert.deepEqual(lintBody(good, 'abc1234fffffffffffffffffffffffffffffffff'), [])
   assert.deepEqual(lintBody(good, 'def5678fffffffffffffffffffffffffffffffff'), ['body does not name the head def5678'])
+})
+
+test('an unclosed fence hides what follows, as it does on GitHub', () => {
+  for (const fence of ['```', '~~~']) {
+    const problems = lintBody(good.replace('## Risk', `${fence}\nopen\n\n## Risk`))
+    assert.ok(problems.includes('missing section: Risk'), fence)
+    assert.ok(problems.includes('missing section: Checklist'), fence)
+  }
+})
+
+test('a close fence may be longer than its open, and a shorter one does not close it', () => {
+  assert.deepEqual(lintBody(good.replace('## Risk', '```\ncode\n`````\n\n## Risk')), [])
+  const problems = lintBody(good.replace('## Risk', '````\n```\n\n## Risk'))
+  assert.ok(problems.includes('missing section: Risk'))
+})
+
+test('an indented fence still hides its contents', () => {
+  assert.ok(lintBody(good.replace('## Risk', '  ```\n## Risk\n  ```')).includes('missing section: Risk'))
+})
+
+test('a backtick line with backticks after it is inline code, not a fence', () => {
+  assert.deepEqual(lintBody(good.replace('filled in abc1234', '```inline``` text')), [])
+})
+
+test('a heading inside an HTML comment does not count', () => {
+  assert.ok(lintBody(good.replace('## Risk', '<!--\n## Risk\n-->')).includes('missing section: Risk'))
+})
+
+test('a section or label holding only a comment is empty', () => {
+  const section = good.replace(/(## Why\n\n).*\n/, '$1<!-- later -->\n')
+  assert.deepEqual(lintBody(section), ['empty section: Why'])
+  const label = good.replace('**Before:** filled in abc1234', '**Before:** <!-- later -->')
+  assert.deepEqual(lintBody(label), ['empty **Before:**'])
+})
+
+test('closing hashes and a small indent still make a heading', () => {
+  assert.deepEqual(lintBody(good.replace('## Risk', '## Risk ##')), [])
+  assert.deepEqual(lintBody(good.replace('## Risk', '   ## Risk')), [])
+})
+
+test('a byte order mark and CRLF change nothing', () => {
+  assert.deepEqual(lintBody(String.fromCharCode(0xfeff) + good), [])
+  assert.deepEqual(lintBody(good.replace(/\n/g, '\r\n')), [])
+})
+
+test('every spelling of a bare N/A is empty, in a section or a label', () => {
+  for (const text of ['N/A.', '**N/A**', 'n/a', 'NA', '_N/A_']) {
+    const body = good.replace(/(## Linked Issue\n\n).*\n/, `$1${text}\n`)
+    assert.deepEqual(lintBody(body), ['empty section: Linked Issue'], text)
+  }
+  assert.deepEqual(lintBody(good.replace('**Before:** filled in abc1234', '**Before:** N/A')), ['empty **Before:**'])
+  assert.deepEqual(lintBody(good.replace('**Level:** filled in abc1234', '**Level:** n/a.')), ['empty **Level:**'])
+})
+
+test('an N/A with a reason is content, in a label too', () => {
+  assert.deepEqual(lintBody(good.replace('**Before:** filled in abc1234', '**Before:** N/A: new file')), [])
+})
+
+const repo = 'Jeff-Kazzee/claude-mods'
+const sha = 'a'.repeat(40)
+const pin = `https://github.com/${repo}/blob/${sha}/a.png?raw=true`
+
+test('a pin on this repo is looked up, whatever the owner case', () => {
+  assert.deepEqual(classifyMedia(`![a](${pin})`, repo), { pins: [{ url: pin, sha, path: 'a.png' }], problems: [] })
+  assert.equal(classifyMedia(`![a](${pin})`, repo.toLowerCase()).pins.length, 1)
+})
+
+test('images that are not pins on this repo fail', () => {
+  for (const url of [
+    pin.replace('Jeff-Kazzee', 'someone'),
+    pin.replace('claude-mods', 'other'),
+    'https://example.com/a.png',
+    pin.replace('?raw=true', ''),
+    pin.replace('/blob/', '/raw/'),
+    `https://raw.githubusercontent.com/${repo}/${sha}/a.png`,
+    `https://github.com/${repo}/blob/dev/a.png?raw=true`,
+  ]) {
+    assert.deepEqual(classifyMedia(`![a](${url})`, repo), { pins: [], problems: [`not on an evidence ref: ${url}`] }, url)
+  }
+})
+
+test('an img tag is checked like Markdown, and a linked video counts as a pin', () => {
+  assert.equal(classifyMedia('<img src="https://example.com/a.png">', repo).problems.length, 1)
+  const mp4 = pin.replace('a.png', 'a.mp4')
+  assert.equal(classifyMedia(`[![a](${pin})](${mp4})`, repo).pins.length, 2)
+})
+
+test('browser uploads pass, and images in code do not count', () => {
+  assert.deepEqual(classifyMedia('![a](https://github.com/user-attachments/assets/abc)', repo), { pins: [], problems: [] })
+  assert.deepEqual(classifyMedia('```\n![a](https://example.com/a.png)\n```', repo), { pins: [], problems: [] })
+})
+
+test('a fence closes only on its own character', () => {
+  const problems = lintBody(good.replace('## Risk', '```\ncode\n~~~\n\n## Risk'))
+  assert.ok(problems.includes('missing section: Risk'))
+})
+
+test('a real pin inside another URL does not make that URL a pin', () => {
+  const url = `https://example.com/?next=${pin}`
+  assert.ok(classifyMedia(`![a](${url})`, repo).problems.includes(`not on an evidence ref: ${url}`))
+})
+
+test('CRLF bodies keep working for every rule', () => {
+  const crlf = good.replace('## Risk', '```\n## Risk\n```').replace(/\n/g, '\r\n')
+  assert.deepEqual(lintBody(crlf), ['missing section: Risk'])
+  assert.deepEqual(lintBody(good.replace('**Level:** filled in abc1234', '**Level:**').replace(/\n/g, '\r\n')), ['empty **Level:**'])
 })

@@ -169,8 +169,11 @@ node <this skill's folder>/scripts/pr-body.mjs check --pr <number>
 out-of-order section, an empty section or label, a bare `N/A`, an unfilled `{{field}}`, an em dash, a missing `Task:` last
 line, and an image that is not on an evidence ref. `--pr` also fails when the
 body does not name the current head, so a push leaves the PR red until the proof
-is redone. Without `gh`, `check body.md` runs the format rules, warns that it
-skipped the image check, and `check --pr` is not available.
+is redone. Without a signed-in `gh` and a GitHub origin, `check body.md` runs the
+format rules and warns that it skipped the image check, and `check --pr` is not
+available. Evidence refs and GitHub's own `user-attachments` uploads count as
+images on an evidence ref. `check` reads `##` headings only, and it can be fooled
+by a heading placed directly after a `<details>` line with no blank line between.
 
 Open the PR as a signed-in viewer and confirm each image draws. `check` proves
 the bytes are on GitHub, not that they display. If no signed-in browser is
