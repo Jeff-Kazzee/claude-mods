@@ -5,8 +5,8 @@ import { extname } from 'node:path'
 
 export const SECTIONS = ['ELI5', 'What Changed', 'Why', 'Linked Issue', 'Proof', 'Testing', 'Risk', 'AI Disclosure',
   'Review', 'Checklist']
-const LABELS = ['Before', 'After', 'Mechanism', 'Level']
-const LABEL_END = `</li>|<h2[\\s>]|<strong>(?:${LABELS.join('|')}):</strong>|$`
+const LABELS = ['Before', 'After', 'Mechanism', 'Impact']
+const LABEL_END = `</li>|<h[1-6][\\s>]|<strong>(?:${LABELS.join('|')}|Level):</strong>|$`
 export const VIDEOS = new Set(['.mp4', '.webm', '.mov'])
 const PIN = /^https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/blob\/([0-9a-f]{40})\/([^?#]+)\?raw=true$/
 const GITHUB_HOSTED = /^https:\/\/(github\.com\/user-attachments\/|github\.com\/[\w.-]+\/[\w.-]+\/assets\/|(private-)?user-images\.githubusercontent\.com\/|github\.githubassets\.com\/images\/icons\/emoji\/)/
@@ -22,7 +22,7 @@ export function fail(message) {
 }
 
 function textOf(html) {
-  return html.replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;|&#\d+;/g, ' ').replace(/\s+/g, ' ').trim()
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 function isBare(text) {
@@ -57,6 +57,9 @@ export function lintBody(html, raw, head) {
     if (!value) problems.push(`missing **${label}:**`)
     else if (!hasContent(value[1])) problems.push(`empty **${label}:**`)
   }
+  const level = html.match(/<strong>Level:<\/strong>([\s\S]*?)(?=<\/p>|<\/li>)/)
+  if (!level) problems.push('missing **Level:**')
+  else if (!/\b(low|medium|high)\b/i.test(textOf(level[1]))) problems.push('**Level:** must say Low, Medium or High')
   const prose = html.replace(/<pre[\s>][\s\S]*?<\/pre>/g, '').replace(/<code[\s>][\s\S]*?<\/code>/g, '')
   if (textOf(prose).includes('{{')) problems.push('unfilled {{field}}')
   if (raw.includes(EM_DASH)) problems.push('em dash')

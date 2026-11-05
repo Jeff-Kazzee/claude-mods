@@ -52,8 +52,8 @@ one Markdown line per file. Paste those lines into the body.
 `attach`, swap the names for the printed lines, and open the PR there. Keep GitHub
 tokens out of sandboxes.
 
-- **Video.** GitHub strips `<video>` tags and shows an `.mp4` URL as a plain
-  link. `attach` makes a GIF of the first 30 seconds and prints it linked to the
+- **Video.** An `.mp4` on a ref shows as a plain link, with no player, and a
+  `<video>` tag does not help. `attach` makes a GIF of the first 30 seconds and prints it linked to the
   full file. Say so in the caption when the video runs longer. Without `ffmpeg`
   (Linveo has none) it prints the plain link and warns, so make the GIF on a host
   that has `ffmpeg`, or attach a GIF you made.
@@ -67,7 +67,8 @@ Paste logs inline: a short one in a fenced block, a long one inside `<details>`.
 ## 3. Write the body
 
 Write to a file, with every `{{field}}` filled. Keep every heading. A section
-that does not apply says `N/A:` and why. If the repo has
+that does not apply says `N/A:` and why, except What Changed and Risk, which every
+PR has. Keep each `**Label:**` as written, in prose and not in a table. If the repo has
 `.github/pull_request_template.md`, keep its sections and boxes as well, each
 in the closest section here.
 
@@ -169,8 +170,8 @@ node <this skill's folder>/scripts/pr-body.mjs check --pr <number>
 `file-pr` owns the title and the opening steps. `check` asks GitHub to render the
 body and judges that HTML, so it reads what a reader sees. It fails on a missing,
 empty or out-of-order section, an empty label, a bare `N/A`, an unfilled `{{field}}`,
-an em dash, a missing `Task:` last line, and an image that is not on an evidence
-ref or a GitHub `user-attachments` upload. `--pr` also fails when the body does not
+a Level that is not Low, Medium or High, an em dash, a missing `Task:` last line,
+and an image that is not on an evidence ref or GitHub's own upload or emoji hosts. `--pr` also fails when the body does not
 name the current head, so after a push it fails until the proof is redone.
 
 `check` needs to reach `api.github.com`. Without a signed-in `gh` and a GitHub

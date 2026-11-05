@@ -6,9 +6,10 @@ import { readFileSync } from 'node:fs'
 const skill = readFileSync(new URL('../SKILL.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 export const template = skill.match(/^````markdown\n([\s\S]*?)^````$/m)[1]
 const good = template.replace(/\{\{.*?\}\}/g, 'filled in abc1234').replace(/Task: filled in abc1234/, 'Task: 179')
+  .replace('**Level:** filled in abc1234', '**Level:** Low')
 
 const section = (name, text) => good.replace(new RegExp(`(## ${name}\\n\\n).*\\n`), `$1${text}\n`)
-const label = (name, text) => good.replace(`**${name}:** filled in abc1234`, `**${name}:**${text}`)
+const label = (name, text) => good.replace(new RegExp(`\\*\\*${name}:\\*\\* .*`), `**${name}:**${text}`)
 const hollow = `${[
   '## ELI5', '## What Changed', '**Before:**', '**After:**', '**Mechanism:**', '## Why', '## Linked Issue',
   '## Proof', '## Testing', '## Risk', '**Level:**', '## AI Disclosure', '## Review', '## Checklist',
@@ -35,7 +36,7 @@ export const lintCases = {
     body: hollow,
     has: ['empty section: ELI5', 'empty section: Why', 'empty section: Linked Issue', 'empty section: Proof',
       'empty section: Testing', 'empty section: AI Disclosure', 'empty section: Review',
-      'empty **Before:**', 'empty **After:**', 'empty **Mechanism:**', 'empty **Level:**'],
+      'empty **Before:**', 'empty **After:**', 'empty **Mechanism:**', '**Level:** must say Low, Medium or High'],
   },
   'heading in a fence': { body: good.replace('## Risk', '```\n## Risk\n```'), has: ['missing section: Risk'] },
   'unclosed fence': { body: good.replace('## Risk', '```\nopen\n\n## Risk'), has: ['missing section: Risk', 'missing section: Checklist'] },
@@ -59,7 +60,17 @@ export const lintCases = {
   'N/A with a reason': { body: section('Linked Issue', 'N/A: Jeff asked in chat'), problems: [] },
   'section of a fenced block': { body: section('Why', '```text\noutput\n```'), problems: [] },
   'section of an image': { body: section('Why', `![a](${pin})`), problems: [] },
-  'empty label': { body: label('Level', '').replace(/\n- filled in abc1234/g, ''), problems: ['empty **Level:**'] },
+  'empty Level above the risk bullets': { body: label('Level', ''), problems: ['**Level:** must say Low, Medium or High'] },
+  'empty Level above a bullet that says high': { body: label('Level', '\n\n- high traffic pages'), problems: ['**Level:** must say Low, Medium or High'] },
+  'a Before that opens with bold and a colon': { body: label('Before', ' **Old:** the way it was'), problems: [] },
+  'bare N/A Level': { body: label('Level', ' N/A'), problems: ['**Level:** must say Low, Medium or High'] },
+  'Level in lower case': { body: label('Level', ' medium'), problems: [] },
+  'Level absent': { body: good.replace('**Level:** Low', 'Low'), problems: ['missing **Level:**'] },
+  'empty Mechanism above a smaller heading': { body: label('Mechanism', '\n\n### Notes\n\nMore.'), problems: ['empty **Mechanism:**'] },
+  'empty Impact': { body: label('Impact', ''), problems: ['empty **Impact:**'] },
+  'bare N/A Impact': { body: label('Impact', ' N/A'), problems: ['empty **Impact:**'] },
+  'Impact absent': { body: good.replace(/\*\*Impact:\*\* .*/, 'filled in abc1234'), problems: ['missing **Impact:**'] },
+  'section of entities only': { body: section('Why', '&nbsp;&#160;'), problems: ['empty section: Why'] },
   'label of a comment': { body: label('Before', ' <!-- later -->'), problems: ['empty **Before:**'] },
   'label of a bare N/A': { body: label('Before', ' N/A'), problems: ['empty **Before:**'] },
   'label of a code N/A': { body: label('Before', ' `N/A`'), problems: ['empty **Before:**'] },
@@ -107,6 +118,7 @@ export const mediaCases = {
   'an image in a fence': { body: media('```\n![a](https://example.com/a.png)\n```'), pins: 0, off: 0 },
   'another owner': { body: media(`![a](${pin.replace('Jeff-Kazzee', 'someone')})`), pins: 0, off: 1 },
   'another repo': { body: media(`![a](${pin.replace('claude-mods', 'other')})`), pins: 0, off: 1 },
+  'an upload host inside another URL': { body: media('![a](https://example.com/?x=https://github.com/user-attachments/a)'), pins: 0, off: 1 },
   'an external host': { body: media('![a](https://example.com/a.png)'), pins: 0, off: 1, names: 'https://example.com/a.png' },
   'a pin with more query': { body: media(`![a](${pin}&x=1)`), pins: 0, off: 1 },
   'no raw flag': { body: media(`![a](${pin.replace('?raw=true', '')})`), pins: 0, off: 1 },
