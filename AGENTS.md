@@ -17,6 +17,21 @@ its tests.
 - To develop a mod live, load the source folder with `claude --plugin-dir plugins/<name>`, or ask Claude to load the
   `plugin-authoring` skill and copy the mod into that session's dev-mods folder for hot reload.
 
+## Other hosts
+
+Linux hosts get the `workflow` and `tstack` skills from `scripts/send-skills.sh`, which streams them over any command
+that runs a shell on the host, so no GitHub login reaches that host. Nothing schedules it. After a skill change lands on
+`dev`, rerun it from the canonical checkout:
+
+```sh
+git fetch origin
+sh scripts/send-skills.sh origin/dev ssh linveo-16gb
+```
+
+Claude Code and Codex on the host load the links it makes. Hermes on Linveo reads the same folders through
+`skills.external_dirs` in `~/.hermes/config.yaml`. A new Daytona sandbox runs the same command with the SSH command from
+the Engineer's `dtn.py ssh <id>`. Prove a host with a fresh session asked to list its skills, not with a file listing.
+
 ## Checks
 
 Run all three for every mod you change, from the repository root:
