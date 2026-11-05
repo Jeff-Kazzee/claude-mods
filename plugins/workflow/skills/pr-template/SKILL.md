@@ -1,6 +1,6 @@
 ---
 name: pr-template
-description: Write every pull request description in Jeff's format (ELI5, before and after, proof, testing, risk, checklist) and attach screenshots, video, logs or other evidence of the work. Use whenever you open or update a PR in any repo, for any kind of change. This format replaces every other PR body format on Jeff's machine.
+description: Write every pull request description in Jeff's format (ELI5, before and after, proof, testing, risk, checklist) and attach screenshots, video, logs or other evidence of the work. Use whenever you open or update a PR in any repo, for any kind of change. This format replaces every other PR body format, for every agent on every host.
 ---
 
 # PR template
@@ -43,12 +43,19 @@ the PR diff, and it outlives the merge.
 node <this skill's folder>/scripts/pr-body.mjs attach --task <id> before.png after.png demo.mp4
 ```
 
-Run it inside a checkout of the repo. It prints one Markdown line per file.
-Paste those lines into the body.
+Run it inside a checkout of the repo, on a host with `gh` signed in. It prints
+one Markdown line per file. Paste those lines into the body.
+
+**No GitHub login on this host** (a Daytona sandbox, for one). Capture and write
+`body.md` here, and run `check body.md`. Copy the media and `body.md` out to a
+host with `gh`, then run `attach`, paste the lines, and open the PR there. Keep
+GitHub tokens out of sandboxes.
 
 - **Video.** GitHub strips `<video>` tags and shows an `.mp4` URL as a plain
   link. `attach` makes a GIF of the first 30 seconds and prints it linked to the
-  full file. Say so in the caption when the video runs longer.
+  full file. Say so in the caption when the video runs longer. Without `ffmpeg`
+  (Linveo has none) it prints the plain link and warns, so make the GIF on a host
+  that has `ffmpeg`, or attach a GIF you made.
 - **Public repos.** `attach` refuses a public repo until you pass `--public-ok`.
   A ref on a public repo publishes the file for good, so get Jeff's yes first.
 - **Private repos.** Images load only for signed-in members. An anonymous fetch
@@ -162,7 +169,8 @@ node <this skill's folder>/scripts/pr-body.mjs check --pr <number>
 out-of-order section, an unfilled `{{field}}`, an em dash, a missing `Task:` last
 line, and an image that is not on an evidence ref. `--pr` also fails when the
 body does not name the current head, so a push leaves the PR red until the proof
-is redone.
+is redone. Without `gh`, `check body.md` runs the format rules, warns that it
+skipped the image check, and `check --pr` is not available.
 
 Open the PR as a signed-in viewer and confirm each image draws. `check` proves
 the bytes are on GitHub, not that they display. If no signed-in browser is
