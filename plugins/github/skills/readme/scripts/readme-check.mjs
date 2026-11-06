@@ -13,6 +13,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { looksLikeImage } from './image-check.mjs'
+
 const ORDER = ['features', 'quick start', 'examples', 'documentation', 'contributing', 'license']
 const FIRST_SCREEN_LINES = 40
 const HYPE = /\b(blazing|revolutionary|world-class|seamless(?:ly)?|powerful|robust|cutting-edge|best-in-class|game-changing|effortless(?:ly)?|next-generation|stunning)\b/i
@@ -192,21 +194,6 @@ const anchor = heading => heading.toLowerCase().trim().replace(/[^\p{L}\p{N} _-]
 
 // npmjs.com answers scripts with 403, so a package page is read from the registry.
 const probeUrl = url => url.replace(/^https:\/\/(www\.)?npmjs\.(com|org)\/package\//, 'https://registry.npmjs.org/')
-
-// True when the bytes are an image a browser can draw, whatever the headers claim.
-function looksLikeImage(bytes) {
-  const text = bytes.toString('latin1')
-  if (/^\s*(\xef\xbb\xbf)?\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!doctype[^>]*>\s*)?<svg[\s>]/i.test(text)) {
-    return /<\/svg\s*>\s*$|\/>\s*$/i.test(text)
-  }
-  if (text.startsWith('\x89PNG\r\n\x1a\n')) {
-    return text.slice(12, 16) === 'IHDR' && bytes.readUInt32BE(16) > 0 && bytes.readUInt32BE(20) > 0 && text.includes('IDAT') && text.includes('IEND')
-  }
-  if (text.startsWith('\xff\xd8\xff')) return text.slice(-1024).includes('\xff\xd9')
-  if (/^GIF8[79]a/.test(text)) return bytes.length > 13 && bytes.at(-1) === 0x3b
-  if (text.startsWith('RIFF') && text.slice(8, 12) === 'WEBP') return bytes.readUInt32LE(4) + 8 <= bytes.length
-  return text.slice(4, 8) === 'ftyp' && /^(avif|avis|mif1|heic)/.test(text.slice(8, 12)) && bytes.length > 32
-}
 
 // GitHub's anchor for each heading, with its -1 suffix for repeats, plus any explicit id or name.
 function anchors(text) {

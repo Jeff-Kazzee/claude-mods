@@ -21,7 +21,7 @@ jobs:
       - name: pr-template body rules
         run: node --test plugins/github/skills/pr-template/scripts/pr-body.test.mjs
       - name: readme and skill link rules
-        run: node --test plugins/github/skills/readme/scripts/readme-check.test.mjs scripts/link-skills.test.mjs
+        run: node --test plugins/github/skills/readme/scripts/readme-check.test.mjs plugins/github/skills/readme/scripts/image-check.test.mjs scripts/link-skills.test.mjs
       - name: Vendored tstack matches upstream plus overlays
         run: |
           commit=$(grep -oE '[0-9a-f]{40}' plugins/tstack/UPSTREAM.md | head -n 1)

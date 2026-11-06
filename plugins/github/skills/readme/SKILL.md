@@ -73,8 +73,9 @@ The check fails on any of these:
 - A missing, empty or out-of-order section, or a limit in the table above.
 - A number with no source, or a claim such as "trusted by" that the repo cannot back.
 - An emoji bullet, an em dash, a semicolon in prose, or a marketing adjective.
-- With `--online`, a dead link, a missing local image, a broken anchor, or a badge that
-  does not return a live image.
+- With `--online`, a dead link, a missing or broken image, a broken anchor, or a badge that
+  reports an error. PNG pixel data is decoded. Other formats get a structure check, so
+  look at the visual yourself.
 - With `--clone`, a quick start command that fails on a fresh clone.
 
 `--clone` runs the quick start's commands on this machine. Use it on repos you own. For
