@@ -19,7 +19,7 @@ its tests.
 
 ## Other hosts
 
-Linux hosts get the `workflow` and `tstack` skills from `scripts/send-skills.sh`, which streams them over any command
+Linux hosts get the `workflow`, `github` and `tstack` skills from `scripts/send-skills.sh`, which streams them over any command
 that runs a shell on the host, so no GitHub login reaches that host. Nothing schedules it. After a skill change lands on
 `dev`, rerun it from the canonical checkout:
 
@@ -43,7 +43,7 @@ tsc -p plugins/<name>
 ```
 
 `tsc -p` needs the engine-written types in `plugins/<name>/.claude-plugin/types/`, which appear after the engine has
-loaded the mod once. They are not committed. A skill-only plugin (`checkable-jobs`, `workflow`, `tstack`) has no
+loaded the mod once. They are not committed. A skill-only plugin (`checkable-jobs`, `workflow`, `github`, `tstack`) has no
 hooks, so `claude plugin test` and `tsc` do not apply to it.
 
 CI (`.github/workflows/ci.yml`) runs on every push to `dev` and every PR into `dev`: `node scripts/ci-check.mjs`

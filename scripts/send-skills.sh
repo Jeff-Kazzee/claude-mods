@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copy the workflow and tstack skills to a Linux host, so agents there load the same text as
+# Copy the workflow, github and tstack skills to a Linux host, so agents there load the same text as
 # the laptop. It carries bytes, not credentials, so it works on a host with no GitHub login.
 # The laptop loads these through plugins, so never point this at the laptop.
 #
@@ -22,7 +22,7 @@ shift
 
 tar=$(mktemp)
 trap 'rm -f "$tar"' EXIT
-git archive --format=tar "$rev" plugins/workflow/skills plugins/tstack/skills > "$tar"
+git archive --format=tar "$rev" plugins/workflow/skills plugins/github/skills plugins/tstack/skills > "$tar"
 want=$(sha256sum "$tar" | cut -d' ' -f1)
 case "$want" in
   ????????????????????????????????????????????????????????????????) ;;

@@ -14,12 +14,13 @@ claude plugin install taste-fork@jeff-mods
 claude plugin install hillclimb-loop@jeff-mods
 claude plugin install checkable-jobs@jeff-mods
 claude plugin install workflow@jeff-mods
+claude plugin install github@jeff-mods
 claude plugin install tstack@jeff-mods
 ```
 
-`workflow` and `tstack` are the mods other runtimes load too. Codex installs them with
+`workflow`, `github` and `tstack` are the mods other runtimes load too. Codex installs them with
 `codex plugin marketplace add C:/Users/jeffk/Development/projects/claude-mods`, then
-`codex plugin add workflow@jeff-mods` and `codex plugin add tstack@jeff-mods`. Cline and DeepSeek Harness read their
+`codex plugin add workflow@jeff-mods`, `codex plugin add github@jeff-mods` and `codex plugin add tstack@jeff-mods`. Cline and DeepSeek Harness read their
 skill folders directly. The wiring for all four is in `plugins/workflow/skills/hill-climb/references/runtimes.md`.
 
 Installed plugins load in every new session. After you change a mod here, run
@@ -92,8 +93,23 @@ request.
   and stop at an acceptance predicate the judges never see. Say "hill climb" or "council climb". The method and its
   sources are in `C:/Users/jeffk/the-little-ai-company-OS/Brain/concepts/hill-climbing-with-judges.md`.
   `hillclimb-loop` stays the automated runner for a rubric with programmatic measures inside Claude Code.
+
+### github
+
+How Jeff's repos look on GitHub.
+
 - `pr-template` sets the description every PR carries: ELI5, before and after, proof, testing, risk and checklist.
   Its `scripts/pr-body.mjs` stores screenshots and video on a `refs/pr-evidence/<task>` ref, and checks the body.
+- `readme` writes a README from a fixed template. Its `scripts/readme-check.mjs` fails on a dead link, a dead badge, a
+  number with no source, or a quick start that does not run on a fresh clone.
+
+`node scripts/link-skills.mjs` installs both skills for Claude Code, Codex, Cline, OpenCode, DeepSeek Harness and
+Linveo from this checkout. `--check` changes nothing and exits 1 on any gap, an unreachable host included. To rebuild
+everything after losing this folder, run this one command in Jeff's own terminal:
+
+```sh
+gh repo clone Jeff-Kazzee/claude-mods ~/Development/projects/claude-mods -- -b dev && node ~/Development/projects/claude-mods/scripts/link-skills.mjs
+```
 
 ### tstack
 
