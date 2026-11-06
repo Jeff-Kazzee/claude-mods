@@ -8,6 +8,7 @@ import { after, before, test } from 'node:test'
 
 import { lint, online, quickStartCommands, quickStartScript, runQuickStart } from './readme-check.mjs'
 
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64')
 const dirs = []
 const fresh = () => {
   const dir = mkdtempSync(join(tmpdir(), 'readme-test-'))
@@ -82,7 +83,7 @@ const repoDir = () => {
   const dir = fresh()
   mkdirSync(join(dir, 'docs'))
   for (const name of ['LICENSE', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'docs/demo.png', 'docs/index.md']) {
-    writeFileSync(join(dir, name), name.endsWith('.png') ? Buffer.from([0x89, 0x50, 0x4e, 0x47]) : 'x')
+    writeFileSync(join(dir, name), name.endsWith('.png') ? PNG : 'x')
   }
   return dir
 }
@@ -156,6 +157,16 @@ test('a heredoc counts as one command and keeps its body', () => {
 
 test('a continued line is one command', () => {
   assert.equal(quickStartCommands(good().replace('echo built > out.txt', 'echo built \\\n  > out.txt')).length, 2)
+})
+
+test('a reference link satisfies the documentation section', () => {
+  const text = good().replace('See [the docs](docs/index.md). The design is in [ARCHITECTURE.md](ARCHITECTURE.md).', 'See [the docs][docs].').replace('## License', '[docs]: docs/index.md\n\n## License')
+  assert.deepEqual(lint(text, repoDir()), [])
+})
+
+test('a bracket that names no definition is not a link', () => {
+  const text = good().replace('See [the docs](docs/index.md). The design is in [ARCHITECTURE.md](ARCHITECTURE.md).', 'See [the docs].')
+  assert.match(lint(text, repoDir()).join(), /no link/)
 })
 
 test('a sourced number passes', () => {
@@ -248,6 +259,29 @@ test('online fails on a local image that is not one', async () => {
   assert.match((await online(live(), dir)).join(), /docs\/demo\.png: not a valid image/)
 })
 
+test('online fails on a truncated image, in each format', async () => {
+  for (const bytes of [
+    Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+    PNG.subarray(0, 40),
+    Buffer.from('GIF89a'),
+    Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]),
+    Buffer.from('RIFF\xff\xff\x00\x00WEBPVP8 ', 'latin1'),
+    Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><text>cut off'),
+  ]) {
+    const dir = repoDir()
+    writeFileSync(join(dir, 'docs/demo.png'), bytes)
+    assert.match((await online(live(), dir)).join(), /not a valid image/)
+  }
+})
+
+test('online fails on a heading that is gone from a linked Markdown file', async () => {
+  const dir = repoDir()
+  writeFileSync(join(dir, 'guide.md'), '# Existing heading\n\n## Twice\n\n## Twice\n\n<a id="custom"></a>\n')
+  const check = async link => online(live().replace('docs/index.md', link), dir)
+  assert.match((await check('guide.md#missing-heading')).join(), /broken anchor guide\.md#missing-heading/)
+  for (const link of ['guide.md#existing-heading', 'guide.md#twice-1', 'guide.md#custom']) assert.deepEqual(await check(link), [])
+})
+
 test('online fails on a badge URL that serves a page', async () => {
   const text = live().replace('ci-passing-green/badge.svg', 'page-as-badge/badge.svg')
   assert.match((await online(text, repoDir())).join(), /not an image/)
@@ -277,6 +311,18 @@ test('a heredoc reaches the shell exactly as written', () => {
   const script = "cat > c.yml <<'EOF'\nroot:\n  child: true\nEOF\ngrep -q '^  child: true$' c.yml"
   const text = good().replace('echo built > out.txt\ntest -f out.txt', () => script)
   assert.deepEqual(runQuickStart(text, repo('one')), [])
+})
+
+test('a line that looks like a prompt stays when it is heredoc data', () => {
+  const script = "cat > l.txt <<'EOF'\n$ VALUE\nEOF\n$ grep -Fq '$ VALUE' l.txt"
+  const text = good().replace('echo built > out.txt\ntest -f out.txt', () => script)
+  assert.equal(quickStartScript(text), "cat > l.txt <<'EOF'\n$ VALUE\nEOF\ngrep -Fq '$ VALUE' l.txt\n")
+  assert.deepEqual(runQuickStart(text, repo('one')), [])
+})
+
+test('a here-string opens no heredoc, and a tab-indented terminator closes one', () => {
+  const text = good().replace('echo built > out.txt\ntest -f out.txt', "cat <<< word\ncat <<-EOF\n\tbody\n\tEOF\necho after")
+  assert.deepEqual(quickStartCommands(text), ['cat <<< word', 'cat <<-EOF', 'echo after'])
 })
 
 test('a clone that cannot start fails', () => {

@@ -56,12 +56,30 @@ export function urls(text, definedIn = text) {
     ...[...plain.matchAll(/!\[[^\]]*\]\(\s*<?([^)\s>]+)/g), ...plain.matchAll(/<img\b[^>]*\bsrc="([^"]+)"/g)].map(m => m[1]),
     ...imageRefs.flatMap(ref => (targets.has(ref) ? [targets.get(ref)] : [])),
   ]
+  const linkRefs = [...plain.matchAll(/(?<!!)\[([^\]]+)\](?:\[([^\]]*)\]|(?![(:\[]))/g)].map(m => (m[2] || m[1]).toLowerCase())
   const links = [
     ...[...plain.matchAll(/\]\(\s*<?([^)\s>]+)/g), ...plain.matchAll(/\bhref="([^"]+)"/g)].map(m => m[1]),
+    ...linkRefs.flatMap(ref => (targets.has(ref) ? [targets.get(ref)] : [])),
     ...[...referenceTargets(text).values()].filter(url => !images.includes(url)),
     ...[...withoutCode(text).matchAll(/<!--\s*source:\s*(\S+)\s*-->/g)].map(m => m[1]),
   ]
   return { links, images }
+}
+
+// Splits a script into its lines, marking those inside a heredoc, which are data and not commands.
+function scriptLines(script) {
+  let heredoc = null
+  return script.split('\n').map(line => {
+    if (heredoc) {
+      const text = heredoc.stripTabs ? line.replace(/^\t+/, '') : line
+      if (text === heredoc.tag) heredoc = null
+      return { line, data: true }
+    }
+    const command = line.replace(/^\$ +/, '')
+    const opener = command.trim().startsWith('#') ? null : /(?<!<)<<(-?)\s*(['"]?)([\w.-]+)\2/.exec(command)
+    if (opener) heredoc = { stripTabs: opener[1] === '-', tag: opener[3] }
+    return { line: command, data: false }
+  })
 }
 
 // The quick start exactly as a reader would paste it, with only the $ prompts removed.
@@ -70,25 +88,19 @@ export function quickStartScript(text) {
   if (!section) return ''
   return [...section.body.matchAll(/^```(\w*)[^\n]*\n([\s\S]*?)^```\s*$/gm)]
     .filter(block => SHELL.test(block[1]))
-    .map(block => block[2].replace(/^\$ +/gm, ''))
+    .map(block => scriptLines(block[2]).map(entry => entry.line).join('\n'))
     .join('')
 }
 
 // One entry per command: a heredoc's body and a line continuation belong to the command that opened them.
 export function quickStartCommands(text) {
   const commands = []
-  let heredoc = null
   let continued = false
-  for (const line of quickStartScript(text).split('\n')) {
-    if (heredoc) {
-      if (line.trim() === heredoc) heredoc = null
-      continue
-    }
+  for (const { line, data } of scriptLines(quickStartScript(text))) {
     const bare = line.trim()
-    if (!bare || bare.startsWith('#')) continue
+    if (data || !bare || bare.startsWith('#')) continue
     if (!continued) commands.push(bare)
     continued = bare.endsWith('\\')
-    heredoc = /<<-?\s*['"]?([\w.-]+)['"]?/.exec(bare)?.[1] ?? null
   }
   return commands
 }
@@ -149,7 +161,7 @@ export function lint(text, dir) {
     if (count < 2 || count > 3) problems.push(`${count} examples, the limit is 2 or 3`)
   }
   const docs = found.find(s => s.name === 'documentation')
-  if (docs && !/\]\(|href=/.test(docs.body)) problems.push('the documentation section has no link')
+  if (docs && urls(docs.body, text).links.length === 0) problems.push('the documentation section has no link')
   const architecture = found.find(s => s.name === 'architecture')
   if (architecture && strip(architecture.body).split(' ').length > 25) {
     problems.push('architecture belongs in ARCHITECTURE.md, with one link here')
@@ -183,10 +195,34 @@ const probeUrl = url => url.replace(/^https:\/\/(www\.)?npmjs\.(com|org)\/packag
 
 // True when the bytes are an image a browser can draw, whatever the headers claim.
 function looksLikeImage(bytes) {
-  const head = bytes.subarray(0, 512).toString('latin1')
-  if (/^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!doctype[^>]*>\s*)?<svg[\s>]/i.test(head)) return true
-  return head.startsWith('\x89PNG') || head.startsWith('\xff\xd8\xff') || head.startsWith('GIF8')
-    || (head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP') || head.slice(4, 8) === 'ftyp'
+  const text = bytes.toString('latin1')
+  if (/^\s*(\xef\xbb\xbf)?\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!doctype[^>]*>\s*)?<svg[\s>]/i.test(text)) {
+    return /<\/svg\s*>\s*$|\/>\s*$/i.test(text)
+  }
+  if (text.startsWith('\x89PNG\r\n\x1a\n')) {
+    return text.slice(12, 16) === 'IHDR' && bytes.readUInt32BE(16) > 0 && bytes.readUInt32BE(20) > 0 && text.includes('IDAT') && text.includes('IEND')
+  }
+  if (text.startsWith('\xff\xd8\xff')) return text.slice(-1024).includes('\xff\xd9')
+  if (/^GIF8[79]a/.test(text)) return bytes.length > 13 && bytes.at(-1) === 0x3b
+  if (text.startsWith('RIFF') && text.slice(8, 12) === 'WEBP') return bytes.readUInt32LE(4) + 8 <= bytes.length
+  return text.slice(4, 8) === 'ftyp' && /^(avif|avis|mif1|heic)/.test(text.slice(8, 12)) && bytes.length > 32
+}
+
+// GitHub's anchor for each heading, with its -1 suffix for repeats, plus any explicit id or name.
+function anchors(text) {
+  const seen = new Map()
+  const found = new Set()
+  for (const line of withoutCode(text).split('\n')) {
+    const heading = /^#{1,6}\s+(.+?)\s*#*\s*$/.exec(line)
+    if (heading) {
+      const base = anchor(heading[1])
+      const count = seen.get(base) ?? 0
+      seen.set(base, count + 1)
+      found.add(count ? `${base}-${count}` : base)
+    }
+    for (const match of line.matchAll(/\b(?:id|name)="([^"]+)"/g)) found.add(match[1])
+  }
+  return found
 }
 
 async function reach(url, isImage) {
@@ -212,20 +248,21 @@ async function reach(url, isImage) {
 export async function online(text, dir) {
   const problems = []
   const { links, images } = urls(text)
-  const headings = new Set(withoutCode(text).split('\n').flatMap(line => {
-    const heading = /^#{1,6}\s+(.+?)\s*$/.exec(line)
-    return heading ? [anchor(heading[1])] : []
-  }))
+  const headings = anchors(text)
   for (const url of new Set([...links, ...images])) {
     if (url.startsWith('#')) {
-      if (!headings.has(url.slice(1))) problems.push(`broken anchor ${url}`)
+      if (!headings.has(decodeURIComponent(url.slice(1)))) problems.push(`broken anchor ${url}`)
     } else if (/^https?:/i.test(url)) {
       const failure = await reach(url, images.includes(url))
       if (failure) problems.push(`${url}: ${failure}`)
     } else if (!/^(mailto:|tel:)/i.test(url)) {
-      const path = join(dir, url.split(/[#?]/)[0])
+      const [target, fragment] = url.split('#')
+      const path = join(dir, target.split('?')[0])
       if (!existsSync(path)) problems.push(`missing file ${url}`)
       else if (images.includes(url) && !looksLikeImage(readFileSync(path))) problems.push(`${url}: not a valid image`)
+      else if (fragment && /\.(md|markdown)$/i.test(path) && !anchors(readFileSync(path, 'utf8').replace(/\r\n/g, '\n')).has(decodeURIComponent(fragment))) {
+        problems.push(`broken anchor ${url}`)
+      }
     }
   }
   return problems

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, test } from 'node:test'
@@ -132,6 +132,8 @@ test('pluginEnabled reads the table, not the name', () => {
   assert.equal(pluginEnabled('[plugins."a@b"]\nenabled = true\n', plugin), true)
   assert.equal(pluginEnabled('[plugins."a@b"]\nenabled = false\n[plugins."c@d"]\nenabled = true\n', plugin), false)
   assert.equal(pluginEnabled('[plugins."c@d"]\nenabled = true\n', plugin), false)
+  assert.equal(pluginEnabled('[plugins."a@b"]\nenabled = false\n  [plugins."c@d"]\nenabled = true\n', plugin), false)
+  assert.equal(pluginEnabled('  [plugins."a@b"] # note\n  enabled = true\n', plugin), true)
 })
 
 test('skillDirs reads list entries and ignores comments and other keys', () => {
@@ -168,6 +170,29 @@ test('the host probe sees a changed helper', () => {
   const want = listingHash(dir)
   writeFileSync(join(dir, 'scripts/readme-check.mjs'), 'broken\n')
   assert.notEqual(probe().stdout.slice(0, 64), want)
+})
+
+test('the host probe fails when part of the install cannot be read', { skip: process.platform === 'win32' }, () => {
+  const { dir, probe } = host()
+  const hidden = join(dir, 'hidden')
+  mkdirSync(hidden)
+  writeFileSync(join(hidden, 'x.txt'), 'x')
+  chmodSync(hidden, 0)
+  try {
+    assert.notEqual(probe().status, 0)
+  } finally {
+    chmodSync(hidden, 0o700)
+  }
+})
+
+test('a checkout that shows CRLF hashes the same as the LF bytes git archives', () => {
+  const { dir, probe } = host()
+  const want = probe().stdout.slice(0, 64)
+  const copy = mkdtempSync(join(tmpdir(), 'link-crlf-'))
+  dirs.push(copy)
+  cpSync(dir, copy, { recursive: true })
+  writeFileSync(join(copy, 'SKILL.md'), '# readme\r\n')
+  assert.equal(listingHash(copy), want)
 })
 
 test('the host probe fails when a runtime link is gone', () => {

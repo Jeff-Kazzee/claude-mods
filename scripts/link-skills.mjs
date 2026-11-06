@@ -37,13 +37,15 @@ export function folderHash(dir) {
   return hash.digest('hex')
 }
 
+// git archive sends committed bytes, and a checkout with core.autocrlf shows the same text with CRLF.
+const committedText = bytes => (bytes.includes(0) ? bytes : Buffer.from(bytes.toString('latin1').replace(/\r\n/g, '\n'), 'latin1'))
 const gitBlob = bytes => createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex')
 const json = path => JSON.parse(readFileSync(path, 'utf8'))
 
 // True when the plugin's own TOML table says enabled = true.
 export function pluginEnabled(config, plugin) {
-  const lines = config.split(/\r?\n/)
-  const start = lines.indexOf(`[plugins."${plugin}"]`)
+  const lines = config.split(/\r?\n/).map(line => line.trim())
+  const start = lines.findIndex(line => line.replace(/\s*#.*$/, '').replace(/\s/g, '') === `[plugins."${plugin}"]`)
   if (start < 0) return false
   const end = lines.findIndex((line, index) => index > start && line.startsWith('['))
   return lines.slice(start + 1, end < 0 ? undefined : end).some(line => /^enabled\s*=\s*true\s*(#.*)?$/.test(line))
@@ -72,7 +74,7 @@ export function listingHash(dir) {
   const lines = files(dir)
     .map(file => [`./${relative(dir, file).replace(/\\/g, '/')}`, file])
     .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([name, file]) => `${createHash('sha256').update(readFileSync(file)).digest('hex')}  ${name}\n`)
+    .map(([name, file]) => `${createHash('sha256').update(committedText(readFileSync(file))).digest('hex')}  ${name}\n`)
   return createHash('sha256').update(lines.join('')).digest('hex')
 }
 
@@ -80,7 +82,7 @@ export function listingHash(dir) {
 export function hostProbe(skill) {
   const dir = `"$HOME/.local/share/jeff-skills/plugins/github/skills/${skill}"`
   const linked = runtime => `test "$(readlink -f "$HOME/${runtime}/skills/${skill}")" = "$(readlink -f ${dir})"`
-  return `${linked('.agents')} && ${linked('.claude')} && cd ${dir} && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum -t | sha256sum`
+  return `bash -c 'set -o pipefail; ${linked('.agents')} && ${linked('.claude')} && cd ${dir} && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum -t | sha256sum'`
 }
 
 function linkState(path, want) {
@@ -160,7 +162,7 @@ export function targets({ root, home, run }) {
         return SKILLS.flatMap(skill => {
           const path = `plugins/github/skills/${skill}/SKILL.md`
           const blob = remote(`gh api 'repos/${REPO}/contents/${path}?ref=${head}' --jq .sha`)
-          return blob.status === 0 && blob.stdout.trim() === gitBlob(readFileSync(join(root, path))) ? [] : [`${skill} on GitHub differs from this checkout`]
+          return blob.status === 0 && blob.stdout.trim() === gitBlob(committedText(readFileSync(join(root, path)))) ? [] : [`${skill} on GitHub differs from this checkout`]
         })
       },
       fix: () => {},
