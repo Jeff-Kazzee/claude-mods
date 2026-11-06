@@ -1,0 +1,8 @@
+{
+  "name": "github",
+  "version": "0.1.0",
+  "description": "How Jeff's repos look on GitHub. The pr-template skill sets the description and evidence every PR carries. The readme skill writes a README whose claims, links, badges and quick start are checked.",
+  "author": {
+    "name": "Jeff Kazzee"
+  }
+}

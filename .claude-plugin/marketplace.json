@@ -31,8 +31,13 @@
     },
     {
       "name": "workflow",
-      "description": "How Jeff's agents work. The flows skill routes each kind of task through the right skills and gates. The hill-climb skill improves work in scored rounds against a frozen check or a council of read-only judges. The pr-template skill sets the description and evidence every PR carries.",
+      "description": "How Jeff's agents work. The flows skill routes each kind of task through the right skills and gates. The hill-climb skill improves work in scored rounds against a frozen check or a council of read-only judges.",
       "source": "./plugins/workflow"
+    },
+    {
+      "name": "github",
+      "description": "How Jeff's repos look on GitHub. The pr-template skill sets the description and evidence every PR carries. The readme skill writes a README whose claims, links, badges and quick start are checked.",
+      "source": "./plugins/github"
     },
     {
       "name": "tstack",

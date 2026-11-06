@@ -65,11 +65,11 @@ These hold in every flow and every runtime. They come from `~/AGENTS.md`.
 
 Call a skill by name with the Skill tool, one skill per call. Names differ by
 runtime: Claude Code prefixes plugin skills (`tstack:full-stop`,
-`workflow:hill-climb`, `pstack:interrogate`), and the other runtimes use the
+`workflow:hill-climb`, `github:pr-template`, `pstack:interrogate`), and the other runtimes use the
 bare name.
 
-Cline and DeepSeek Harness load `flows`, `hill-climb`, `pr-template`, and the
-tstack skills,
+Cline and DeepSeek Harness load `flows`, `hill-climb`, `pr-template`, `readme`, and
+the tstack skills,
 but not pstack or Matt Pocock's skills. When a skill a flow names is not in
 your catalog, read its SKILL.md from these folders and follow it:
 
