@@ -147,7 +147,7 @@ test('a failing CLI is reported and stops nothing else', () => {
   const base = fakeRun(w)
   const run = (command, args) => (command === 'codex' ? { status: 1, stdout: '', stderr: 'boom' } : base(command, args))
   const result = install(w, run)
-  assert.match(failures(result), /FAIL {2}codex: codex plugin add failed: boom/)
+  assert.match(failures(result), /FAIL {2}codex: codex plugin add github@jeff-mods failed: boom/)
   assert.doesNotMatch(failures(result), /cline|opencode/)
 })
 

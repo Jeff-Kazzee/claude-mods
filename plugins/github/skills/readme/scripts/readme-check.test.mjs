@@ -161,7 +161,7 @@ let base
 before(async () => {
   server = createServer((request, response) => {
     if (request.url.includes('gone')) return response.writeHead(404).end()
-    if (request.url.includes('fake')) return response.writeHead(200, { 'content-type': 'image/svg+xml' }).end('<svg><text>repo not found</text></svg>')
+    if (request.url.includes('fake')) return response.writeHead(200, { 'content-type': 'image/svg+xml' }).end('<svg><text>repo or workflow not found</text></svg>')
     if (request.url.includes('page-as-badge')) return response.writeHead(200, { 'content-type': 'text/html' }).end('<html>')
     if (request.url.includes('.svg')) return response.writeHead(200, { 'content-type': 'image/svg+xml' }).end('<svg><text>passing</text></svg>')
     response.writeHead(200).end('ok')

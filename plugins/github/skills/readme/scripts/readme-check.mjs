@@ -20,7 +20,7 @@ const UNBACKED = /\b(trusted by|used by|loved by|thousands of|millions of|hundre
 const COUNTED = /\b\d[\d,.]*\s*(?:k|m|\+)?\s*(?:%|percent|stars?|users?|downloads?|companies|customers|contributors|teams|developers|installs?|x faster|times faster)/i
 const SOURCED = /<!--\s*source:\s*\S+\s*-->/
 const BADGE = /img\.shields\.io|badge\.fury\.io|\/badge\.svg|badgen\.net|codecov\.io\/.*\/badge/i
-const BROKEN_BADGE = />\s*(invalid|not found|repo not found|inaccessible|no status|unknown|error)\s*</i
+const BROKEN_BADGE = />[^<]*\b(invalid|not found|inaccessible|no status|unknown|error)\b[^<]*</i
 const SHELL = /^(sh|bash|shell|console)$/i
 const GIT_BASH = 'C:/Program Files/Git/bin/bash.exe'
 
