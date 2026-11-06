@@ -78,7 +78,8 @@ The check fails on any of these:
 - With `--clone`, a quick start command that fails on a fresh clone.
 
 `--clone` runs the quick start's commands on this machine. Use it on repos you own. For
-anything else, run it inside the habitat sandbox or a Daytona sandbox.
+anything else, run it inside a Daytona sandbox. A URL clones the default branch, so pass
+the path of a local checkout to test a branch before it merges.
 
 Done when the full command exits 0 on the commit you will publish. A failure means the
 README or the project is wrong. Fix whichever one lied.

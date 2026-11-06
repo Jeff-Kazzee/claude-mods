@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, test } from 'node:test'
 
-import { folderHash, sweep, targets } from './link-skills.mjs'
+import { folderHash, hostProbe, listingHash, pluginEnabled, skillDirs, sweep, targets } from './link-skills.mjs'
 
 const dirs = []
 after(() => dirs.forEach(dir => rmSync(dir, { recursive: true, force: true })))
@@ -36,7 +37,7 @@ function fakeRun({ root, home }, state = {}) {
     for (const name of ['pr-template', 'readme']) cpSync(source(name), join(cache, 'skills', name), { recursive: true })
     mkdirSync(join(workflow, 'skills', 'flows'), { recursive: true })
   }
-  return (command, args) => {
+  return (command, args, options) => {
     const line = [command, ...args].join(' ')
     if (state.down && command === 'ssh') return { status: 255, stdout: '', stderr: 'no route' }
     if (command === 'git') return { status: 0, stdout: 'abc\n', stderr: '' }
@@ -54,7 +55,10 @@ function fakeRun({ root, home }, state = {}) {
       mkdirSync(join(home, '.codex'), { recursive: true })
       writeFileSync(join(home, '.codex/config.toml'), '[plugins."github@jeff-mods"]\nenabled = true\n')
     }
-    if (line.includes('send-skills')) state.sent = true
+    if (line.includes('send-skills')) {
+      state.sent = true
+      state.sentFrom = options?.cwd
+    }
     if (command === 'ssh' && line.includes('commits/')) return { status: 0, stdout: 'abc\n', stderr: '' }
     if (command === 'ssh' && line.includes('contents/')) {
       const name = /skills\/([a-z-]+)\/SKILL/.exec(line)[1]
@@ -63,8 +67,8 @@ function fakeRun({ root, home }, state = {}) {
     }
     if (command === 'ssh' && line.includes('sha256sum')) {
       if (!state.sent) return { status: 1, stdout: '', stderr: '' }
-      const name = /skills\/([a-z-]+)\/SKILL/.exec(line)[1]
-      return { status: 0, stdout: `${createHash('sha256').update(readFileSync(join(source(name), 'SKILL.md'))).digest('hex')}  x\n`, stderr: '' }
+      const name = /skills\/([a-z-]+)"/.exec(line)[1]
+      return { status: 0, stdout: `${listingHash(source(name))}  -\n`, stderr: '' }
     }
     return { status: 0, stdout: '', stderr: '' }
   }
@@ -98,6 +102,8 @@ for (const [name, target, breakIt] of [
   ['a stale Claude cache', 'claude', w => writeFileSync(join(w.home, '.claude/plugins/cache/github/skills/readme/SKILL.md'), 'old')],
   ['a stale Codex cache', 'codex', w => writeFileSync(join(w.home, '.codex/plugins/cache/jeff-mods/github/0.1.0/skills/readme/SKILL.md'), 'old')],
   ['workflow still carrying pr-template in Codex', 'codex', w => mkdirSync(join(w.home, '.codex/plugins/cache/jeff-mods/workflow/0.4.0/skills/pr-template'))],
+  ['a plugin turned off in Codex', 'codex', w => writeFileSync(join(w.home, '.codex/config.toml'), '[plugins."github@jeff-mods"]\nenabled = false\n')],
+  ['a DeepSeek Harness line left only in a comment', 'dsh', w => writeFileSync(join(w.home, '.dsh/profiles/desktop/cordis.patch.yml'), `customSkillDirs: []\n# - ${w.root.replace(/\\/g, '/')}/plugins/github/skills\n`)],
   ['a plugin turned off in Claude', 'claude', w => writeFileSync(join(w.home, '.claude/settings.json'), '{}')],
   ['a removed DeepSeek Harness line', 'dsh', w => writeFileSync(join(w.home, '.dsh/profiles/desktop/cordis.patch.yml'), 'nothing\n')],
   ['a skill in ~/.agents/skills', 'laws', w => mkdirSync(join(w.home, '.agents/skills/readme'), { recursive: true })],
@@ -113,6 +119,62 @@ for (const [name, target, breakIt] of [
     assert.match(failures(result), new RegExp(`FAIL  ${target}:`))
   })
 }
+
+test('the install runs send-skills from the checkout', () => {
+  const w = world()
+  const state = {}
+  install(w, fakeRun(w, state))
+  assert.equal(state.sentFrom, w.root)
+})
+
+test('pluginEnabled reads the table, not the name', () => {
+  const plugin = 'a@b'
+  assert.equal(pluginEnabled('[plugins."a@b"]\nenabled = true\n', plugin), true)
+  assert.equal(pluginEnabled('[plugins."a@b"]\nenabled = false\n[plugins."c@d"]\nenabled = true\n', plugin), false)
+  assert.equal(pluginEnabled('[plugins."c@d"]\nenabled = true\n', plugin), false)
+})
+
+test('skillDirs reads list entries and ignores comments and other keys', () => {
+  const yaml = 'a:\n  customSkillDirs:\n    - !!js x\n      more\n    # - commented\n    - real/path\n  other:\n    - not-this\n'
+  assert.deepEqual(skillDirs(yaml), ['!!js x', 'real/path'])
+})
+
+const bash = existsSync('C:/Program Files/Git/bin/bash.exe') ? 'C:/Program Files/Git/bin/bash.exe' : 'bash'
+
+function host() {
+  const remote = mkdtempSync(join(tmpdir(), 'link-host-'))
+  dirs.push(remote)
+  const dir = join(remote, '.local/share/jeff-skills/plugins/github/skills/readme')
+  mkdirSync(join(dir, 'scripts'), { recursive: true })
+  writeFileSync(join(dir, 'SKILL.md'), '# readme\n')
+  writeFileSync(join(dir, 'scripts/readme-check.mjs'), 'good\n')
+  for (const runtime of ['.agents', '.claude']) {
+    mkdirSync(join(remote, runtime, 'skills'), { recursive: true })
+    symlinkSync(dir, join(remote, runtime, 'skills/readme'), 'junction')
+  }
+  const probe = () => spawnSync(bash, ['-c', hostProbe('readme')], { encoding: 'utf8', env: { ...process.env, HOME: remote } })
+  return { remote, dir, probe }
+}
+
+test('the host probe prints the same hash this side computes', () => {
+  const { dir, probe } = host()
+  const found = probe()
+  assert.equal(found.status, 0, found.stderr)
+  assert.equal(found.stdout.slice(0, 64), listingHash(dir))
+})
+
+test('the host probe sees a changed helper', () => {
+  const { dir, probe } = host()
+  const want = listingHash(dir)
+  writeFileSync(join(dir, 'scripts/readme-check.mjs'), 'broken\n')
+  assert.notEqual(probe().stdout.slice(0, 64), want)
+})
+
+test('the host probe fails when a runtime link is gone', () => {
+  const { remote, probe } = host()
+  rmSync(join(remote, '.claude/skills/readme'), { force: true, recursive: true })
+  assert.notEqual(probe().status, 0)
+})
 
 test('an unreachable host is a failure, never a skip', () => {
   const w = world()

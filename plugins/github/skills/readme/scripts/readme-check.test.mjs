@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, test } from 'node:test'
 
-import { lint, online, quickStartCommands, runQuickStart } from './readme-check.mjs'
+import { lint, online, quickStartCommands, quickStartScript, runQuickStart } from './readme-check.mjs'
 
 const dirs = []
 const fresh = () => {
@@ -82,7 +82,7 @@ const repoDir = () => {
   const dir = fresh()
   mkdirSync(join(dir, 'docs'))
   for (const name of ['LICENSE', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'docs/demo.png', 'docs/index.md']) {
-    writeFileSync(join(dir, name), 'x')
+    writeFileSync(join(dir, name), name.endsWith('.png') ? Buffer.from([0x89, 0x50, 0x4e, 0x47]) : 'x')
   }
   return dir
 }
@@ -137,6 +137,27 @@ test('real output in a fence counts as the visual', () => {
   assert.deepEqual(lint(text, repoDir()), [])
 })
 
+test('bold text does not hide a number', () => {
+  assert.match(lint(good().replace('You need Node 22.', '**5000** users run it.'), repoDir()).join(), /no <!-- source/)
+})
+
+test('a reference-style image counts as a badge and a visual', () => {
+  const text = good().replace('<p align="center">\n  <img src="docs/demo.png" alt="Lantern showing a filtered log" width="640" />\n</p>', '![Demo][shot]')
+    .replace('## License', '[shot]: docs/demo.png\n\n## License')
+  assert.deepEqual(lint(text, repoDir()), [])
+})
+
+test('a heredoc counts as one command and keeps its body', () => {
+  const text = good().replace('echo built > out.txt', "cat > c.yml <<'EOF'\nroot:\n  child: true\n  more: true\n  extra: true\n  last: true\nEOF")
+  assert.deepEqual(quickStartCommands(text), ["cat > c.yml <<'EOF'", 'test -f out.txt'])
+  assert.deepEqual(lint(text, repoDir()), [])
+  assert.match(quickStartScript(text), /\n {2}child: true\n/)
+})
+
+test('a continued line is one command', () => {
+  assert.equal(quickStartCommands(good().replace('echo built > out.txt', 'echo built \\\n  > out.txt')).length, 2)
+})
+
 test('a sourced number passes', () => {
   const text = good().replace('You need Node 22.', 'Parses 40 MB in a second, and 300 users run it. <!-- source: https://example.test/stats -->')
   assert.deepEqual(lint(text, repoDir()), [])
@@ -163,6 +184,7 @@ before(async () => {
     if (request.url.includes('gone')) return response.writeHead(404).end()
     if (request.url.includes('fake')) return response.writeHead(200, { 'content-type': 'image/svg+xml' }).end('<svg><text>repo or workflow not found</text></svg>')
     if (request.url.includes('page-as-badge')) return response.writeHead(200, { 'content-type': 'text/html' }).end('<html>')
+    if (request.url.includes('corrupt')) return response.writeHead(200, { 'content-type': 'image/svg+xml' }).end('not an svg')
     if (request.url.includes('.svg')) return response.writeHead(200, { 'content-type': 'image/svg+xml' }).end('<svg><text>passing</text></svg>')
     response.writeHead(200).end('ok')
   })
@@ -195,6 +217,37 @@ test('online fails on a badge that reports an error', async () => {
   assert.match((await online(text, repoDir())).join(), /reports an error/)
 })
 
+test('online fails on a dead reference link', async () => {
+  const text = `${live()}\n[More][manual]\n\n[manual]: ${base}/gone\n`
+  assert.match((await online(text, repoDir())).join(), /HTTP 404/)
+})
+
+test('online fails on a dead reference image', async () => {
+  const text = `${live()}\n![Shot][shot]\n\n[shot]: ${base}/gone.png\n`
+  assert.match((await online(text, repoDir())).join(), /HTTP 404/)
+})
+
+test('online fails on a dead source for a number', async () => {
+  const text = live().replace('You need Node 22.', `5000 users run it. <!-- source: ${base}/gone -->`)
+  assert.match((await online(text, repoDir())).join(), /HTTP 404/)
+})
+
+test('online fails on an image that serves a page', async () => {
+  const text = live().replace('docs/demo.png', `${base}/page-as-badge/shot.png`)
+  assert.match((await online(text, repoDir())).join(), /not an image/)
+})
+
+test('online fails on an SVG header over text', async () => {
+  const text = live().replace('ci-passing-green/badge.svg', 'corrupt/badge.svg')
+  assert.match((await online(text, repoDir())).join(), /not a valid image/)
+})
+
+test('online fails on a local image that is not one', async () => {
+  const dir = repoDir()
+  writeFileSync(join(dir, 'docs/demo.png'), 'this is text')
+  assert.match((await online(live(), dir)).join(), /docs\/demo\.png: not a valid image/)
+})
+
 test('online fails on a badge URL that serves a page', async () => {
   const text = live().replace('ci-passing-green/badge.svg', 'page-as-badge/badge.svg')
   assert.match((await online(text, repoDir())).join(), /not an image/)
@@ -218,6 +271,12 @@ test('the quick start runs on a fresh clone', () => {
 test('a quick start that needs a file the clone lacks fails', () => {
   const text = good().replace('echo built > out.txt', 'test -f only-on-my-laptop.txt')
   assert.match(runQuickStart(text, repo('one')).join(), /failed on a fresh clone/)
+})
+
+test('a heredoc reaches the shell exactly as written', () => {
+  const script = "cat > c.yml <<'EOF'\nroot:\n  child: true\nEOF\ngrep -q '^  child: true$' c.yml"
+  const text = good().replace('echo built > out.txt\ntest -f out.txt', () => script)
+  assert.deepEqual(runQuickStart(text, repo('one')), [])
 })
 
 test('a clone that cannot start fails', () => {

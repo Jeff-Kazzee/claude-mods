@@ -40,6 +40,49 @@ export function folderHash(dir) {
 const gitBlob = bytes => createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex')
 const json = path => JSON.parse(readFileSync(path, 'utf8'))
 
+// True when the plugin's own TOML table says enabled = true.
+export function pluginEnabled(config, plugin) {
+  const lines = config.split(/\r?\n/)
+  const start = lines.indexOf(`[plugins."${plugin}"]`)
+  if (start < 0) return false
+  const end = lines.findIndex((line, index) => index > start && line.startsWith('['))
+  return lines.slice(start + 1, end < 0 ? undefined : end).some(line => /^enabled\s*=\s*true\s*(#.*)?$/.test(line))
+}
+
+// The list entries under each customSkillDirs key. A comment is not an entry.
+export function skillDirs(yaml) {
+  const lines = yaml.split(/\r?\n/)
+  const found = []
+  lines.forEach((line, index) => {
+    const key = /^(\s*)customSkillDirs:\s*$/.exec(line)
+    if (!key) return
+    for (const next of lines.slice(index + 1)) {
+      if (!next.trim() || next.trim().startsWith('#')) continue
+      const indent = /^\s*/.exec(next)[0].length
+      const item = /^\s*-\s+(.+?)\s*$/.exec(next)
+      if (indent < key[1].length || (indent === key[1].length && !item)) break
+      if (item) found.push(item[1])
+    }
+  })
+  return found
+}
+
+// sha256sum's output for a folder, hashed, so the same value can be computed on either end.
+export function listingHash(dir) {
+  const lines = files(dir)
+    .map(file => [`./${relative(dir, file).replace(/\\/g, '/')}`, file])
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([name, file]) => `${createHash('sha256').update(readFileSync(file)).digest('hex')}  ${name}\n`)
+  return createHash('sha256').update(lines.join('')).digest('hex')
+}
+
+// Run on the host. It fails unless both runtimes link to the install, and prints the install's hash.
+export function hostProbe(skill) {
+  const dir = `"$HOME/.local/share/jeff-skills/plugins/github/skills/${skill}"`
+  const linked = runtime => `test "$(readlink -f "$HOME/${runtime}/skills/${skill}")" = "$(readlink -f ${dir})"`
+  return `${linked('.agents')} && ${linked('.claude')} && cd ${dir} && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum -t | sha256sum`
+}
+
 function linkState(path, want) {
   let stat
   try {
@@ -83,8 +126,8 @@ export function targets({ root, home, run }) {
     ...SKILLS.filter(skill => !same(join(cached, skill), skill)).map(skill => `${label} cache of ${skill} differs from the source`),
     ...(existsSync(join(workflow, 'pr-template')) ? [`${label} still loads workflow:pr-template`] : []),
   ]
-  const ask = (command, args, what) => {
-    const result = run(command, args)
+  const ask = (command, args, what, options) => {
+    const result = run(command, args, options)
     if (result.status !== 0) throw new Error(`${what} failed: ${(result.stderr || result.stdout || '').trim().split('\n').at(-1)}`)
     return result.stdout.trim()
   }
@@ -150,7 +193,7 @@ export function targets({ root, home, run }) {
       name: 'codex',
       problems: () => {
         const config = existsSync(codexConfig) ? readFileSync(codexConfig, 'utf8') : ''
-        if (!config.includes(`[plugins."${PLUGIN}"]`)) return [`${PLUGIN} is not in config.toml`]
+        if (!pluginEnabled(config, PLUGIN)) return [`${PLUGIN} is not enabled in config.toml`]
         return cacheProblems('codex', join(codexCache, 'github', version('github'), 'skills'), join(codexCache, 'workflow', version('workflow'), 'skills'))
       },
       fix: () => {
@@ -165,11 +208,11 @@ export function targets({ root, home, run }) {
     linkFolder(join(home, '.config', 'opencode', 'skills'), 'opencode', source),
     {
       name: 'dsh',
-      problems: () => (existsSync(dshProfile) && readFileSync(dshProfile, 'utf8').includes(`- ${dshLine}`) ? [] : [`${dshProfile} has no ${dshLine}`]),
+      problems: () => (existsSync(dshProfile) && skillDirs(readFileSync(dshProfile, 'utf8')).includes(dshLine) ? [] : [`${dshProfile} has no ${dshLine}`]),
       fix: () => {
         if (!existsSync(dshProfile)) return
         const text = readFileSync(dshProfile, 'utf8')
-        if (text.includes(`- ${dshLine}`)) return
+        if (skillDirs(text).includes(dshLine)) return
         const next = text.replace(/^( *- )\S*\/plugins\/workflow\/skills\r?$/m, line => `${line}\n${/^ */.exec(line)[0]}- ${dshLine}`)
         if (next === text) throw new Error('no workflow skills line in the DeepSeek Harness profile')
         writeFileSync(dshProfile, next)
@@ -178,14 +221,12 @@ export function targets({ root, home, run }) {
     {
       name: 'linveo',
       problems: () => SKILLS.flatMap(skill => {
-        const path = `.local/share/jeff-skills/plugins/github/skills/${skill}/SKILL.md`
-        const found = remote(`sha256sum "$HOME/${path}"; test -e "$HOME/.agents/skills/${skill}/SKILL.md"`)
-        const want = createHash('sha256').update(readFileSync(join(source(skill), 'SKILL.md'))).digest('hex')
-        return found.status === 0 && found.stdout.startsWith(want) ? [] : [`${skill} on ${HOST} is missing or old`]
+        const found = remote(hostProbe(skill))
+        return found.status === 0 && found.stdout.startsWith(listingHash(source(skill))) ? [] : [`${skill} on ${HOST} is missing, old or unlinked`]
       }),
       fix: () => {
         const shell = existsSync(GIT_BASH) ? GIT_BASH : 'sh'
-        ask(shell, [join(root, 'scripts', 'send-skills.sh'), 'HEAD', 'ssh', HOST], 'send-skills')
+        ask(shell, [join(root, 'scripts', 'send-skills.sh'), 'HEAD', 'ssh', HOST], 'send-skills', { cwd: root })
       },
     },
   ]
@@ -208,11 +249,11 @@ export function sweep(list, { fix }) {
   return { failed, report }
 }
 
-function run(command, args) {
+function run(command, args, { cwd = homedir() } = {}) {
   // Plain names resolve through PATH, and Windows shims need a shell.
   const shell = process.platform === 'win32' && !/[\\/]|^(git|ssh)$/.test(command)
   const line = shell ? [command, ...args].join(' ') : command
-  const result = spawnSync(line, shell ? [] : args, { cwd: homedir(), encoding: 'utf8', shell, timeout: 300000, windowsHide: true })
+  const result = spawnSync(line, shell ? [] : args, { cwd, encoding: 'utf8', shell, timeout: 300000, windowsHide: true })
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' }
 }
 
