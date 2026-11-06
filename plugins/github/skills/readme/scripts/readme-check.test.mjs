@@ -132,6 +132,11 @@ for (const [name, change, expected] of [
   })
 }
 
+test('real output in a fence counts as the visual', () => {
+  const text = good().replace(/<p align="center">[\s\S]*?<\/p>/, '```\n$ lantern app.log\n200 GET /health\n```')
+  assert.deepEqual(lint(text, repoDir()), [])
+})
+
 test('a sourced number passes', () => {
   const text = good().replace('You need Node 22.', 'Parses 40 MB in a second, and 300 users run it. <!-- source: https://example.test/stats -->')
   assert.deepEqual(lint(text, repoDir()), [])

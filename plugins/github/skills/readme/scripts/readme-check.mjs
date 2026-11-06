@@ -81,7 +81,9 @@ export function lint(text, dir) {
   const shown = urls(screen).images
   const badges = urls(top).images.filter(src => BADGE.test(src))
   if (badges.length < 3 || badges.length > 5) problems.push(`${badges.length} badges, the limit is 3 to 5`)
-  const hasFence = /^```/m.test(screen)
+  const firstSectionRaw = text.search(/^## /m)
+  const rawTop = text.slice(0, firstSectionRaw < 0 ? text.length : firstSectionRaw)
+  const hasFence = /^```/m.test(rawTop.split('\n').slice(0, FIRST_SCREEN_LINES).join('\n'))
   if (!shown.some(src => !BADGE.test(src)) && !hasFence) {
     problems.push(`no visual in the first ${FIRST_SCREEN_LINES} lines`)
   }
@@ -141,9 +143,12 @@ export function lint(text, dir) {
 
 const anchor = heading => heading.toLowerCase().trim().replace(/[^\p{L}\p{N} _-]/gu, '').replace(/ /g, '-')
 
+// npmjs.com answers scripts with 403, so a package page is read from the registry.
+const probeUrl = url => url.replace(/^https:\/\/(www\.)?npmjs\.(com|org)\/package\//, 'https://registry.npmjs.org/')
+
 async function reach(url, isBadge) {
   try {
-    const response = await fetch(url, {
+    const response = await fetch(probeUrl(url), {
       redirect: 'follow',
       signal: AbortSignal.timeout(20000),
       headers: { 'user-agent': 'readme-check' },
@@ -204,7 +209,7 @@ async function main() {
     process.exit(2)
   }
   const path = resolve(file)
-  const text = readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
+  const text = readFileSync(path, 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
   const dir = dirname(path)
   const problems = lint(text, dir)
   if (args.includes('--online')) problems.push(...await online(text, dir))
